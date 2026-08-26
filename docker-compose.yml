@@ -1,0 +1,74 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: pedales
+      POSTGRES_PASSWORD: pedales
+      POSTGRES_DB: pedales
+    ports:
+      - "5433:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pedales"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: ./api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://pedales:pedales@db:5432/pedales?schema=public
+      JWT_SECRET: dev-secret-change-me
+      ADMIN_EMAIL: admin@tienda.com
+      ADMIN_PASSWORD: admin123
+      PORT: 3001
+      MP_MOCK: "false"
+      MP_ACCESS_TOKEN: ${MP_ACCESS_TOKEN:-TEST-5928519209433854-082114-3191a4a7da0247faded170fe356f7a0a-1114113521}
+      MP_SUCCESS_URL: http://localhost:3003/checkout/success
+      MP_FAILURE_URL: http://localhost:3003/checkout/failure
+      MP_PENDING_URL: http://localhost:3003/checkout/pending
+      MP_NOTIFICATION_URL: http://localhost:3001/api/payments/webhook
+      MP_CURRENCY_ID: ARS
+      FRONTEND_URL: http://localhost:3003
+      ANDREANI_MOCK: "true"
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./api:/app
+      - /app/node_modules
+
+  web:
+    build: ./web
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+      API_INTERNAL_URL: http://api:3001
+    ports:
+      - "3003:3000"   # (o el puerto que hayas dejado vos) 
+
+  admin:
+    build: ./admin
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+    ports:
+      - "3002:3000"
+    volumes:
+      - ./admin:/app
+      - /app/node_modules
+      - /app/.next
+
+volumes:
+  db_data:

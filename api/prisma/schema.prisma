@@ -1,0 +1,115 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x", "linux-musl-arm64-openssl-1.1.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  SHIPPED
+  CANCELLED
+}
+
+model Category {
+  id        String     @id @default(uuid())
+  name      String
+  parentId  String?    
+  parent    Category?  @relation("CategoryChildren", fields: [parentId], references: [id])
+  children  Category[] @relation("CategoryChildren")
+  brands    Brand[]
+  products  Product[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model Brand {
+  id         String    @id @default(uuid())
+  name       String
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id])
+  products   Product[]
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  name        String
+  description String
+  price       Decimal  @db.Decimal(10, 2)
+  stock       Int      @default(0)
+  categoryId  String?
+  category    Category? @relation(fields: [categoryId], references: [id])
+  brandId     String?
+  brand       Brand?    @relation(fields: [brandId], references: [id])
+  images      String[] @default([])
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  orderItems OrderItem[]
+}
+
+model Order {
+  id              String      @id @default(uuid())
+  status          OrderStatus @default(PENDING)
+
+  buyerName       String
+  buyerEmail      String
+  buyerPhone      String
+
+  shippingStreet  String
+  shippingNumber  String
+  shippingCity    String
+  shippingState   String
+  shippingZip     String
+  shippingCost    Decimal     @db.Decimal(10, 2) @default(0)
+
+  itemsTotal      Decimal     @db.Decimal(10, 2)
+  total           Decimal     @db.Decimal(10, 2)
+
+  items           OrderItem[]
+  payment         Payment?
+  shipment        Shipment?
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+}
+
+model OrderItem {
+  id         String  @id @default(uuid())
+  order      Order   @relation(fields: [orderId], references: [id])
+  orderId    String
+  product    Product @relation(fields: [productId], references: [id])
+  productId  String
+  quantity   Int
+  unitPrice  Decimal @db.Decimal(10, 2)
+}
+
+model Payment {
+  id             String   @id @default(uuid())
+  order          Order    @relation(fields: [orderId], references: [id])
+  orderId        String   @unique
+  provider       String   @default("mercadopago")
+  preferenceId   String?
+  externalId     String?
+  status         String   @default("pending")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Shipment {
+  id           String   @id @default(uuid())
+  order        Order    @relation(fields: [orderId], references: [id])
+  orderId      String   @unique
+  provider     String   @default("andreani")
+  trackingId   String?
+  status       String   @default("pending")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
