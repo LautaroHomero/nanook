@@ -195,6 +195,50 @@ button, input, select {
   font-size: 1rem;
 }
 
+.search-select {
+  position: relative;
+  width: 100%;
+}
+
+.search-select input {
+  margin-bottom: 0;
+}
+
+.search-options {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  list-style: none;
+  padding: 6px;
+  margin: 0;
+  background: #111111;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  max-height: 220px;
+  overflow-y: auto;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.22);
+}
+
+.search-options li + li {
+  margin-top: 4px;
+}
+
+.search-options button {
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+
+.search-options button:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
 button {
   background: transparent;
   color: var(--text);
