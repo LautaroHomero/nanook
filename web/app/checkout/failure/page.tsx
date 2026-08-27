@@ -1,13 +1,12 @@
 'use client';
 
-import Link from 'next/link';
+import { Suspense } from 'react';
+import { PaymentReturnView } from '../payment-return-view';
 
 export default function CheckoutFailurePage() {
   return (
-    <div>
-      <h1>Pago no completado</h1>
-      <p>La operación fue rechazada o cancelada.</p>
-      <Link href="/checkout">Volver al checkout</Link>
-    </div>
+    <Suspense fallback={<p>Procesando tu pago...</p>}>
+      <PaymentReturnView mode="failure" />
+    </Suspense>
   );
 }

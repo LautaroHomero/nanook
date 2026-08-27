@@ -13,7 +13,7 @@ import {
 } from '@/lib/argentina-addresses';
 
 export default function CheckoutPage() {
-  const { items: cart, clear } = useCart();
+  const { items: cart } = useCart();
   const [shippingCost, setShippingCost] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -221,7 +221,6 @@ export default function CheckoutPage() {
         items: cart.map((i) => ({ productId: i.productId, quantity: i.quantity })),
         ...form,
       });
-      clear();
       window.location.href = result.payment.initPoint;
     } catch (err: any) {
       setError(err.message || 'Error al crear la orden');

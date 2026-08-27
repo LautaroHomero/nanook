@@ -31,14 +31,16 @@ services:
       ADMIN_PASSWORD: admin123
       PORT: 3001
       MP_MOCK: "false"
-      MP_ACCESS_TOKEN: ${MP_ACCESS_TOKEN:-TEST-5928519209433854-082114-3191a4a7da0247faded170fe356f7a0a-1114113521}
+      MP_ACCESS_TOKEN: ${MP_ACCESS_TOKEN:-APP_USR-2665813189459429-082714-6ddcce5fc59d6226cba3f31e1bec9d0d-3633650198}
       MP_SUCCESS_URL: http://localhost:3003/checkout/success
       MP_FAILURE_URL: http://localhost:3003/checkout/failure
       MP_PENDING_URL: http://localhost:3003/checkout/pending
-      MP_NOTIFICATION_URL: http://localhost:3001/api/payments/webhook
+      MP_WEBHOOK_SECRET: ${MP_WEBHOOK_SECRET:-REPLACE_WITH_YOUR_MERCADO_PAGO_WEBHOOK_SECRET}
+      MP_NOTIFICATION_URL: ${MP_NOTIFICATION_URL:-https://YOUR_PUBLIC_DOMAIN/api/payments/webhook}
       MP_CURRENCY_ID: ARS
       FRONTEND_URL: http://localhost:3003
       ANDREANI_MOCK: "true"
+      CHOKIDAR_USEPOLLING: "true"
     ports:
       - "3001:3001"
     volumes:
@@ -53,8 +55,14 @@ services:
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:3001
       API_INTERNAL_URL: http://api:3001
+      WATCHPACK_POLLING: "true"
+      CHOKIDAR_USEPOLLING: "true"
     ports:
       - "3003:3000"   # (o el puerto que hayas dejado vos) 
+    volumes:
+      - ./web:/app
+      - /app/node_modules
+      - /app/.next
 
   admin:
     build: ./admin
@@ -63,6 +71,8 @@ services:
       - api
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:3001
+      WATCHPACK_POLLING: "true"
+      CHOKIDAR_USEPOLLING: "true"
     ports:
       - "3002:3000"
     volumes:

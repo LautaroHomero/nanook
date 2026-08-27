@@ -101,6 +101,64 @@ export async function confirmOrderPayment(orderId: string) {
   return res.json();
 }
 
+export interface PaymentStatusResponse {
+  paymentId: number;
+  status: string;
+  orderId: string | null;
+}
+
+export interface PaymentReturnResolution {
+  verified: boolean;
+  paymentId: number | null;
+  orderId: string | null;
+  preferenceId: string | null;
+  status: string;
+  amountMatches: boolean | null;
+  expectedAmount: number | null;
+  remoteAmount: number | null;
+  localOrderStatus: string | null;
+  localPaymentStatus: string | null;
+}
+
+export async function getPaymentStatus(paymentId: string): Promise<PaymentStatusResponse | null> {
+  const res = await fetch(`${API_URL}/api/payments/status/${paymentId}`, {
+    cache: 'no-store',
+  });
+
+  if (res.status === 404) {
+    return null;
+  }
+
+  if (!res.ok) {
+    throw new Error('No se pudo consultar el estado del pago');
+  }
+
+  return res.json();
+}
+
+export async function resolvePaymentReturn(params: {
+  paymentId?: string | null;
+  orderId?: string | null;
+  preferenceId?: string | null;
+  status?: string | null;
+}): Promise<PaymentReturnResolution> {
+  const qs = new URLSearchParams();
+  if (params.paymentId) qs.set('paymentId', params.paymentId);
+  if (params.orderId) qs.set('orderId', params.orderId);
+  if (params.preferenceId) qs.set('preferenceId', params.preferenceId);
+  if (params.status) qs.set('status', params.status);
+
+  const res = await fetch(`${API_URL}/api/payments/resolve?${qs.toString()}`, {
+    cache: 'no-store',
+  });
+
+  if (!res.ok) {
+    throw new Error('No se pudo verificar el pago');
+  }
+
+  return res.json();
+}
+
 export async function mockConfirmPayment(orderId: string) {
   const res = await fetch(`${API_URL}/api/payments/mock-confirm/${orderId}`, {
     method: 'POST',
