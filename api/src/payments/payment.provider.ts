@@ -1,3 +1,5 @@
+import { MercadoPagoConfig, Payment, Preference } from 'mercadopago';
+
 export interface CreatePreferenceInput {
   orderId: string;
   title: string;
@@ -10,10 +12,25 @@ export interface CreatePreferenceResult {
   initPoint: string; // URL a la que se redirige al comprador
 }
 
+export interface PaymentStatusResult {
+  paymentId: number;
+  status?: string;
+  externalReference?: string;
+  transactionAmount?: number;
+  currencyId?: string;
+}
+
 export interface PaymentProvider {
   createPreference(
     input: CreatePreferenceInput,
   ): Promise<CreatePreferenceResult>;
+
+  getPayment(paymentId: string): Promise<PaymentStatusResult | null>;
+}
+
+function toOptionalNumber(value: unknown) {
+  const numberValue = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(numberValue) ? numberValue : undefined;
 }
 
 function buildReturnUrl(baseUrl: string, route: string, orderId: string) {
@@ -32,11 +49,32 @@ function isValidRedirectUrl(url: string) {
   }
 }
 
+function isValidHttpsUrl(url: string) {
+  try {
+    const parsed = new URL(url);
+    return (
+      parsed.protocol === 'https:' &&
+      parsed.hostname !== 'localhost' &&
+      parsed.hostname !== '127.0.0.1'
+    );
+  } catch {
+    return false;
+  }
+}
+
 export class MercadoPagoProvider implements PaymentProvider {
   private readonly accessToken: string;
+  private readonly preference: Preference;
+  private readonly payment: Payment;
 
   constructor(accessToken?: string) {
     this.accessToken = accessToken || process.env.MP_ACCESS_TOKEN || '';
+    const client = new MercadoPagoConfig({
+      accessToken: this.accessToken,
+      options: { timeout: 5000 },
+    });
+    this.preference = new Preference(client);
+    this.payment = new Payment(client);
   }
 
   async createPreference(
@@ -69,16 +107,14 @@ export class MercadoPagoProvider implements PaymentProvider {
       );
     }
 
-    const notificationUrl =
-      process.env.MP_NOTIFICATION_URL || `http://localhost:3001/api/payments/webhook`;
+    const notificationUrl = process.env.MP_NOTIFICATION_URL?.trim();
+    const useNotificationUrl =
+      notificationUrl && !notificationUrl.includes('YOUR_PUBLIC_DOMAIN') && isValidHttpsUrl(notificationUrl)
+        ? notificationUrl
+        : null;
 
-    const response = await fetch('https://api.mercadopago.com/checkout/preferences', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.accessToken}`,
-      },
-      body: JSON.stringify({
+    const response = await this.preference.create({
+      body: {
         items: [
           {
             id: input.orderId,
@@ -94,24 +130,37 @@ export class MercadoPagoProvider implements PaymentProvider {
           failure: failureUrl,
           pending: pendingUrl,
         },
-        notification_url: notificationUrl,
         external_reference: input.orderId,
         metadata: { orderId: input.orderId },
-      }),
+        ...(useNotificationUrl ? { notification_url: useNotificationUrl } : {}),
+      },
     });
 
-    if (!response.ok) {
-      const errorBody = await response.text();
-      throw new Error(
-        `Mercado Pago no pudo crear la preferencia: ${response.status} ${errorBody}`,
-      );
+    return {
+      preferenceId: String(response.id),
+      initPoint: response.init_point || response.sandbox_init_point || successUrl,
+    };
+  }
+
+  async getPayment(paymentId: string): Promise<PaymentStatusResult | null> {
+    const id = Number(paymentId);
+
+    if (!Number.isFinite(id)) {
+      return null;
     }
 
-    const data = await response.json();
+    const payment = await this.payment.get({ id });
+
+    if (!payment?.id) {
+      return null;
+    }
 
     return {
-      preferenceId: data.id,
-      initPoint: data.init_point || data.sandbox_init_point || successUrl,
+      paymentId: payment.id,
+      status: payment.status,
+      externalReference: payment.external_reference,
+      transactionAmount: toOptionalNumber(payment.transaction_amount),
+      currencyId: payment.currency_id,
     };
   }
 }
@@ -126,5 +175,9 @@ export class MockMercadoPagoProvider implements PaymentProvider {
       preferenceId: fakeId,
       initPoint: `http://localhost:3003/checkout/mock-pago?orderId=${input.orderId}`,
     };
+  }
+
+  async getPayment(): Promise<PaymentStatusResult | null> {
+    return null;
   }
 }

@@ -1,4 +1,5 @@
-import { Body, Controller, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, Req, UnauthorizedException } from '@nestjs/common';
+import type { Request } from 'express';
 import { PaymentsService } from './payments.service';
 
 @Controller('payments')
@@ -18,20 +19,52 @@ export class PaymentsController {
   }
 
   @Post('webhook')
-  webhook(@Body() payload: any) {
-    const orderId =
-      payload?.data?.external_reference ??
-      payload?.external_reference ??
-      payload?.data?.metadata?.orderId;
+  webhook(@Req() req: Request, @Body() body: any, @Query() query: Record<string, string>) {
+    const dataId = query['data.id'] ?? body?.data?.id ?? body?.id ?? body?.payment_id;
+    const xSignature = req.headers['x-signature'];
+    const xRequestId = req.headers['x-request-id'];
 
-    if (!orderId) {
-      return { received: true };
+    const signatureResult = this.service.validateWebhookSignature({
+      xSignature: Array.isArray(xSignature) ? xSignature[0] : xSignature,
+      xRequestId: Array.isArray(xRequestId) ? xRequestId[0] : xRequestId,
+      dataId: typeof dataId === 'string' ? dataId : dataId != null ? String(dataId) : null,
+    });
+
+    if (!signatureResult.valid) {
+      throw new UnauthorizedException(`Webhook inválido: ${signatureResult.reason}`);
     }
 
-    if (payload?.type === 'payment' && payload?.action === 'payment.updated') {
-      return this.service.markAsPaid(orderId);
-    }
+    const normalizedPayload = {
+      ...body,
+      action: body?.action ?? query.action,
+      api_version: body?.api_version ?? query.api_version,
+      type: body?.type ?? query.type,
+      data: {
+        ...(body?.data ?? {}),
+        id: typeof dataId === 'string' ? dataId : dataId != null ? String(dataId) : undefined,
+      },
+    };
 
-    return { received: true, orderId };
+    return this.service.handleWebhook(normalizedPayload);
+  }
+
+  @Get('status/:paymentId')
+  paymentStatus(@Param('paymentId') paymentId: string) {
+    return this.service.getPaymentStatus(paymentId);
+  }
+
+  @Get('resolve')
+  resolveReturn(
+    @Query('paymentId') paymentId?: string,
+    @Query('orderId') orderId?: string,
+    @Query('preferenceId') preferenceId?: string,
+    @Query('status') status?: string,
+  ) {
+    return this.service.resolveReturn({
+      paymentId,
+      orderId,
+      preferenceId,
+      mpStatus: status,
+    });
   }
 }
