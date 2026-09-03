@@ -174,3 +174,26 @@ export async function getOrder(id: string) {
   if (!res.ok) throw new Error('Orden no encontrada');
   return res.json();
 }
+
+
+export interface ProductRequestPayload {
+  name: string;
+  brand?: string;
+  category?: string;
+  notes?: string;
+  buyerEmail: string;
+  buyerPhone?: string;
+}
+
+export async function createProductRequest(payload: ProductRequestPayload) {
+  const res = await fetch(`${API_URL}/api/product-requests`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || 'No se pudo enviar el pedido');
+  }
+  return res.json();
+}

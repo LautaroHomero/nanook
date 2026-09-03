@@ -15,6 +15,12 @@ enum OrderStatus {
   CANCELLED
 }
 
+enum ProductRequestStatus {
+  PENDING
+  FULFILLED
+  DISMISSED
+}
+
 model Category {
   id        String     @id @default(uuid())
   name      String
@@ -52,7 +58,9 @@ model Product {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  orderItems OrderItem[]
+  orderItems   OrderItem[]
+  stockAlerts  StockAlert[]
+  productRequests ProductRequest[]
 }
 
 model Order {
@@ -112,4 +120,35 @@ model Shipment {
   status       String   @default("pending")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+// Alguien pide un producto que hoy no está en el catálogo. Queda pendiente
+// hasta que el admin lo vincula con un Product recién creado (dispara el
+// aviso) o lo descarta manualmente.
+model ProductRequest {
+  id            String                @id @default(uuid())
+  name          String
+  brand         String?
+  category      String?
+  notes         String?
+  buyerEmail    String
+  buyerPhone    String?
+  status        ProductRequestStatus  @default(PENDING)
+  linkedProduct Product?              @relation(fields: [linkedProductId], references: [id])
+  linkedProductId String?
+  createdAt     DateTime              @default(now())
+  fulfilledAt   DateTime?
+}
+
+// Alguien pide que le avisen cuando un producto puntual (que sí existe, pero
+// está sin stock) vuelva a tener stock. Esto SÍ se resuelve solo: cuando el
+// stock del producto pasa de 0 a >0, se notifica y se marca notified=true.
+model StockAlert {
+  id         String   @id @default(uuid())
+  product    Product  @relation(fields: [productId], references: [id])
+  productId  String
+  buyerEmail String
+  notified   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  notifiedAt DateTime?
 }
