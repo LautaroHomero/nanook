@@ -10,6 +10,10 @@ RUN npm install
 COPY . .
 RUN npx prisma generate
 RUN npm run build
+# Si esto falla, el build de Render se corta acá mismo con el motivo exacto,
+# en vez de arrancar el contenedor y recién ahí explotar con "Cannot find
+# module dist/main" sin contexto.
+RUN ls -la dist && test -f dist/main.js || (echo "❌ nest build no generó dist/main.js" && exit 1)
 
 EXPOSE 3001
 
