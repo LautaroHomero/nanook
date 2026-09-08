@@ -1,0 +1,19 @@
+FROM node:20-alpine
+
+RUN apk add --no-cache openssl
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install
+
+COPY . .
+RUN npx prisma generate
+RUN npm run build
+
+EXPOSE 3001
+
+# A diferencia del Dockerfile de desarrollo: compila en vez de correr con
+# --watch, y usa "migrate deploy" (aplica migraciones versionadas) en vez de
+# "db push --accept-data-loss" (que puede pisar datos reales sin avisar).
+CMD ["sh", "-c", "npx prisma migrate deploy && npm run start:prod"]
