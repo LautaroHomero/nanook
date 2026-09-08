@@ -396,7 +396,7 @@ export default function CheckoutPage() {
           <span>${total}</span>
         </div>
 
-        {error && <p style={{ color: '#e07b7b' }}>{error}</p>}
+        {error && <p style={{ color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: 10 }}>{error}</p>}
 
         <button type="submit" disabled={loading}>
           {loading ? 'Procesando...' : 'Pagar con Mercado Pago'}

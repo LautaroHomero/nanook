@@ -22,6 +22,9 @@ export default function RootLayout({
               <span className="logo-led" aria-hidden="true" />
               Nanook
             </Link>
+             <Link href="/pedir-producto" className="cart-link">
+                Pedir producto
+            </Link>
             <PedalboardBadge />
           </header>
           <main className="container">{children}</main>

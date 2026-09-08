@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
   Product,
   activateProduct,
@@ -99,6 +100,13 @@ export default function ProductsPage() {
         >
           Salir
         </button>
+      </div>
+
+      <div className="row" style={{ marginBottom: 16, gap: 8 }}>
+        <Link href="/productos"><button>Productos</button></Link>
+        <Link href="/pedidos"><button className="secondary">Compras</button></Link>
+        <Link href="/solicitudes"><button className="secondary">Pedidos de producto</button></Link>
+        <Link href="/avisos"><button className="secondary">Avisos de stock</button></Link>
       </div>
 
       {!showNew && !editing && (

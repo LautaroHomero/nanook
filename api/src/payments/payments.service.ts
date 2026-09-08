@@ -6,6 +6,7 @@ import {
   MercadoPagoProvider,
   MockMercadoPagoProvider,
   PaymentProvider,
+  PaymentStatusResult,
 } from './payment.provider';
 
 @Injectable()
@@ -96,7 +97,13 @@ export class PaymentsService {
   }
 
   async getPaymentStatus(paymentId: string) {
-    const payment = await this.provider.getPayment(paymentId);
+    let payment: PaymentStatusResult | null = null;
+    try {
+      payment = await this.provider.getPayment(paymentId);
+    } catch {
+      // MP no respondió: tratamos como "sin datos remotos" en vez de romper.
+      payment = null;
+    }
 
     if (!payment) {
       return null;
@@ -172,7 +179,18 @@ export class PaymentsService {
       });
     };
 
-    const remotePayment = paymentId ? await this.provider.getPayment(paymentId) : null;
+    let remotePayment: PaymentStatusResult | null = null;
+    if (paymentId) {
+      try {
+        remotePayment = await this.provider.getPayment(paymentId);
+      } catch {
+        // MP no respondió (token de otro entorno, timeout, pago inexistente):
+        // seguimos con el estado que llegó en el retorno del navegador y
+        // dejamos que el webhook o un reintento lo confirmen.
+        remotePayment = null;
+      }
+    }
+
     const resolvedOrderId =
       remotePayment?.externalReference ??
       localPayment?.orderId ??
@@ -188,8 +206,14 @@ export class PaymentsService {
 
     const remoteStatus = remotePayment?.status ?? mpStatus ?? localPayment?.status ?? 'pending';
     const normalizedStatus = remoteStatus.toLowerCase();
-    const verifiedByReference =
-      !remotePayment || !resolvedOrderId || remotePayment.externalReference === resolvedOrderId;
+    // Solo rechazamos ante un desajuste EXPLÍCITO de external_reference. Si MP
+    // no devolvió external_reference pero el Payment local ya quedó atado a la
+    // orden (por externalId / preferenceId / orderId), lo damos por válido.
+    const referenceMismatch =
+      !!remotePayment?.externalReference &&
+      !!resolvedOrderId &&
+      remotePayment.externalReference !== resolvedOrderId;
+    const verifiedByReference = !referenceMismatch;
     const verifiedByAmount = amountMatches !== false;
     const verified = verifiedByReference && verifiedByAmount;
     const storedStatus =
@@ -208,23 +232,37 @@ export class PaymentsService {
       });
     }
 
+    // Finaliza la orden sin romper la request si markAsPaid falla (p. ej.
+    // faltante de stock al momento de aprobar): guardamos el motivo y lo
+    // devolvemos para que el front lo muestre.
+    let finalizeError: string | null = null;
+    const finalize = async (id: string) => {
+      try {
+        await this.markAsPaid(id);
+      } catch (err) {
+        finalizeError =
+          err instanceof Error ? err.message : 'No se pudo finalizar la orden';
+      }
+    };
+
     if (
       remotePayment?.status === 'approved' &&
       remotePayment.externalReference &&
       verified
     ) {
-      await this.markAsPaid(remotePayment.externalReference);
+      await finalize(remotePayment.externalReference);
     } else if (
       normalizedStatus === 'approved' &&
       resolvedOrderId &&
       verified &&
       localOrder?.status !== 'PAID'
     ) {
-      await this.markAsPaid(resolvedOrderId);
+      await finalize(resolvedOrderId);
     }
 
     return {
       verified,
+      finalizeError,
       paymentId: remotePayment?.paymentId ?? (paymentId ? Number(paymentId) : null),
       orderId: resolvedOrderId,
       preferenceId: preferenceId ?? localPayment?.preferenceId ?? null,
@@ -249,7 +287,12 @@ export class PaymentsService {
       payload?.data?.metadata?.preferenceId;
 
     if (paymentId) {
-      const payment = await this.provider.getPayment(String(paymentId));
+      let payment: PaymentStatusResult | null = null;
+      try {
+        payment = await this.provider.getPayment(String(paymentId));
+      } catch {
+        payment = null;
+      }
 
       if (!payment) {
         return { received: true, paymentId };
@@ -292,7 +335,13 @@ export class PaymentsService {
         throw new Error(`Orden ${orderId} no encontrada`);
       }
 
-      if (order.status === 'PAID' || order.payment?.status === 'approved') {
+      // Idempotencia: solo order.status === 'PAID' certifica que el stock ya
+      // se descontó. payment.status puede llegar en 'approved' desde
+      // resolveReturn/handleWebhook antes de correr esta transacción, así que
+      // no sirve como señal de "ya procesado" (si lo usáramos, esta rama se
+      // dispararía en la primera confirmación real y nunca decrementaría
+      // stock ni marcaría la orden como pagada).
+      if (order.status === 'PAID') {
         return {
           ...order,
           status: 'PAID',

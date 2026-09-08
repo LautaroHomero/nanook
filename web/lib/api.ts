@@ -109,6 +109,7 @@ export interface PaymentStatusResponse {
 
 export interface PaymentReturnResolution {
   verified: boolean;
+  finalizeError?: string | null;
   paymentId: number | null;
   orderId: string | null;
   preferenceId: string | null;
@@ -172,5 +173,46 @@ export async function getOrder(id: string) {
     cache: 'no-store',
   });
   if (!res.ok) throw new Error('Orden no encontrada');
+  return res.json();
+}
+
+
+export interface ProductRequestPayload {
+  name: string;
+  brand?: string;
+  category?: string;
+  notes?: string;
+  buyerEmail: string;
+  buyerPhone?: string;
+}
+
+export interface StockAlertPayload {
+  productId: string;
+  buyerEmail: string;
+}
+
+export async function createStockAlert(payload: StockAlertPayload) {
+  const res = await fetch(`${API_URL}/api/stock-alerts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || 'No se pudo guardar el aviso');
+  }
+  return res.json();
+}
+
+export async function createProductRequest(payload: ProductRequestPayload) {
+  const res = await fetch(`${API_URL}/api/product-requests`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || 'No se pudo enviar el pedido');
+  }
   return res.json();
 }
