@@ -80,10 +80,13 @@ export function PaymentReturnView({ mode }: { mode: ReturnMode }) {
   const params = useSearchParams();
   const { clear } = useCart();
   const [status, setStatus] = useState<'loading' | 'approved' | 'pending' | 'rejected'>('loading');
-  const [orderId, setOrderId] = useState<string | null>(params.get('orderId'));
+  const [orderId, setOrderId] = useState<string | null>(
+    params.get('orderId') ?? params.get('external_reference'),
+  );
   const [paymentId, setPaymentId] = useState<string>(extractPaymentId(params));
   const [verification, setVerification] = useState<{
     verified: boolean;
+    finalizeError: string | null;
     amountMatches: boolean | null;
     expectedAmount: number | null;
     remoteAmount: number | null;
@@ -94,7 +97,7 @@ export function PaymentReturnView({ mode }: { mode: ReturnMode }) {
   const copy = STATUS_COPY[mode];
 
   useEffect(() => {
-    const nextOrderId = params.get('orderId');
+    const nextOrderId = params.get('orderId') ?? params.get('external_reference');
     const nextPaymentId = extractPaymentId(params);
     const nextPreferenceId = params.get('preference_id');
     const nextStatus =
@@ -117,6 +120,7 @@ export function PaymentReturnView({ mode }: { mode: ReturnMode }) {
 
         setVerification({
           verified: result.verified,
+          finalizeError: result.finalizeError ?? null,
           amountMatches: result.amountMatches,
           expectedAmount: result.expectedAmount,
           remoteAmount: result.remoteAmount,
@@ -137,7 +141,7 @@ export function PaymentReturnView({ mode }: { mode: ReturnMode }) {
         const rejected =
           resolvedStatus === 'rejected' || result.localOrderStatus === 'CANCELLED';
 
-        if (approved && result.verified) {
+        if (approved && result.verified && !result.finalizeError) {
           clear();
           setStatus('approved');
           return;
@@ -170,8 +174,9 @@ export function PaymentReturnView({ mode }: { mode: ReturnMode }) {
 
   const verificationMessage = useMemo(() => {
     if (!verification) return null;
-    if (!verification.verified) return 'No pudimos verificar completamente la coincidencia entre MP y la orden local.';
+    if (verification.finalizeError) return verification.finalizeError;
     if (verification.amountMatches === false) return 'El monto devuelto por Mercado Pago no coincide con la orden.';
+    if (!verification.verified) return 'No pudimos verificar completamente la coincidencia entre MP y la orden local.';
     return null;
   }, [verification]);
 

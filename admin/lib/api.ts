@@ -55,6 +55,49 @@ export interface Brand {
   categoryId?: string | null;
 }
 
+export interface OrderItem {
+  id: string;
+  productId: string;
+  quantity: number;
+  unitPrice: number;
+  product?: Product;
+}
+
+export interface Payment {
+  id: string;
+  provider: string;
+  preferenceId?: string | null;
+  externalId?: string | null;
+  status: string;
+}
+
+export interface Shipment {
+  id: string;
+  provider: string;
+  trackingId?: string | null;
+  status: string;
+}
+
+export interface Order {
+  id: string;
+  status: 'PENDING' | 'PAID' | 'SHIPPED' | 'CANCELLED';
+  buyerName: string;
+  buyerEmail: string;
+  buyerPhone: string;
+  shippingStreet: string;
+  shippingNumber: string;
+  shippingCity: string;
+  shippingState: string;
+  shippingZip: string;
+  shippingCost: number;
+  itemsTotal: number;
+  total: number;
+  items: OrderItem[];
+  payment: Payment | null;
+  shipment: Shipment | null;
+  createdAt: string;
+}
+
 export async function login(email: string, password: string) {
   const res = await fetch(`${API_URL}/api/admin/auth/login`, {
     method: 'POST',
@@ -156,6 +199,80 @@ export async function activateProduct(id: string) {
     body: JSON.stringify({ active: true }),
   });
   if (!res.ok) throw new Error('No se pudo reactivar el producto');
+  return res.json();
+}
+
+export interface ProductRequest {
+  id: string;
+  name: string;
+  brand?: string | null;
+  category?: string | null;
+  notes?: string | null;
+  buyerEmail: string;
+  buyerPhone?: string | null;
+  status: 'PENDING' | 'FULFILLED' | 'DISMISSED';
+  linkedProduct?: Product | null;
+  linkedProductId?: string | null;
+  createdAt: string;
+  fulfilledAt?: string | null;
+}
+
+export async function getProductRequests(status?: string): Promise<ProductRequest[]> {
+  const qs = status ? `?status=${encodeURIComponent(status)}` : '';
+  const res = await fetch(`${API_URL}/api/product-requests/admin/all${qs}`, {
+    headers: authHeaders(),
+    cache: 'no-store',
+  });
+  if (res.status === 401) throw new Error('UNAUTHORIZED');
+  if (!res.ok) throw new Error('No se pudieron cargar los pedidos de producto');
+  return res.json();
+}
+
+export async function dismissProductRequest(id: string) {
+  const res = await fetch(`${API_URL}/api/product-requests/${id}/dismiss`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error('No se pudo descartar el pedido');
+  return res.json();
+}
+
+export async function linkProductRequest(id: string, productId: string) {
+  const res = await fetch(`${API_URL}/api/product-requests/${id}/link/${productId}`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error('No se pudo vincular el producto');
+  return res.json();
+}
+
+export interface StockAlert {
+  id: string;
+  productId: string;
+  buyerEmail: string;
+  notified: boolean;
+  createdAt: string;
+  notifiedAt?: string | null;
+  product?: Product | null;
+}
+
+export async function getStockAlerts(): Promise<StockAlert[]> {
+  const res = await fetch(`${API_URL}/api/stock-alerts/admin/all`, {
+    headers: authHeaders(),
+    cache: 'no-store',
+  });
+  if (res.status === 401) throw new Error('UNAUTHORIZED');
+  if (!res.ok) throw new Error('No se pudieron cargar los avisos de stock');
+  return res.json();
+}
+
+export async function getAllOrders(): Promise<Order[]> {
+  const res = await fetch(`${API_URL}/api/orders/admin/all`, {
+    headers: authHeaders(),
+    cache: 'no-store',
+  });
+  if (res.status === 401) throw new Error('UNAUTHORIZED');
+  if (!res.ok) throw new Error('No se pudieron cargar las compras');
   return res.json();
 }
 

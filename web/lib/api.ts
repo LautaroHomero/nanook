@@ -109,6 +109,7 @@ export interface PaymentStatusResponse {
 
 export interface PaymentReturnResolution {
   verified: boolean;
+  finalizeError?: string | null;
   paymentId: number | null;
   orderId: string | null;
   preferenceId: string | null;
@@ -183,6 +184,24 @@ export interface ProductRequestPayload {
   notes?: string;
   buyerEmail: string;
   buyerPhone?: string;
+}
+
+export interface StockAlertPayload {
+  productId: string;
+  buyerEmail: string;
+}
+
+export async function createStockAlert(payload: StockAlertPayload) {
+  const res = await fetch(`${API_URL}/api/stock-alerts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || 'No se pudo guardar el aviso');
+  }
+  return res.json();
 }
 
 export async function createProductRequest(payload: ProductRequestPayload) {

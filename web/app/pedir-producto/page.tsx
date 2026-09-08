@@ -96,7 +96,7 @@ export default function ProductRequestPage() {
           onChange={(e) => update('buyerPhone', e.target.value)}
         />
 
-        {error && <p style={{ color: '#e07b7b' }}>{error}</p>}
+        {error && <p style={{ color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: 10 }}>{error}</p>}
 
         <button type="submit" disabled={loading}>
           {loading ? 'Enviando...' : 'Enviar pedido'}

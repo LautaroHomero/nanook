@@ -89,7 +89,7 @@ export default function Image360({ images, autoplay = true, speed = 0.4 }: { ima
   }, [isSinglePng]);
 
   return (
-    <div style={( { maxWidth: 640, margin: '0 auto 20px', position: 'relative', background: 'var(--bg)', borderRadius: 12, padding: 6 } as any)}>
+    <div style={( { maxWidth: 640, margin: '0 auto 24px', position: 'relative', background: '#ffffff', border: '1px solid var(--border)', borderRadius: 8, padding: 16 } as any)}>
       <div
         ref={containerRef}
         onPointerDown={onPointerDown}
@@ -105,8 +105,7 @@ export default function Image360({ images, autoplay = true, speed = 0.4 }: { ima
             width: '100%',
             height: 'auto',
             display: 'block',
-            borderRadius: 12,
-            boxShadow: '0 10px 30px rgba(0,0,0,0.4)',
+            borderRadius: 4,
             ...(isSinglePng ? {} : { background: 'var(--bg)' }),
             userSelect: 'none',
             transition: draggingRef.current ? 'none' : 'transform 120ms linear',
@@ -119,7 +118,7 @@ export default function Image360({ images, autoplay = true, speed = 0.4 }: { ima
       </div>
 
       <div style={{ position: 'absolute', right: 12, bottom: 12, display: 'flex', gap: 8 }}>
-        <button onClick={() => setIsPlaying((p) => !p)} style={{ padding: '8px 10px', borderRadius: 8, border: 'none', background: 'rgba(0,0,0,0.5)', color: '#fff' }}>
+        <button onClick={() => setIsPlaying((p) => !p)} style={{ padding: '8px 16px', borderRadius: 9999, border: 'none', background: '#101010', color: '#fff', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
           {isPlaying ? 'Pausa' : 'Play'}
         </button>
       </div>

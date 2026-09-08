@@ -23,3 +23,32 @@ export class MockNotificationProvider implements NotificationProvider {
     console.log('-------------------------------');
   }
 }
+
+// Manda mails de verdad vía la API HTTP de Resend (resend.com).
+export class ResendNotificationProvider implements NotificationProvider {
+  constructor(
+    private apiKey: string,
+    private from: string,
+  ) {}
+
+  async sendEmail(input: SendEmailInput): Promise<void> {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: this.from,
+        to: input.to,
+        subject: input.subject,
+        text: input.body,
+      }),
+    });
+
+    if (!res.ok) {
+      const errorBody = await res.text();
+      throw new Error(`Resend respondió ${res.status}: ${errorBody}`);
+    }
+  }
+}

@@ -40,6 +40,9 @@ services:
       MP_CURRENCY_ID: ARS
       FRONTEND_URL: http://localhost:3003
       ANDREANI_MOCK: "true"
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-onboarding@resend.dev}
+      ADMIN_NOTIFICATION_EMAIL: ${ADMIN_NOTIFICATION_EMAIL:-}
       CHOKIDAR_USEPOLLING: "true"
     ports:
       - "3001:3001"

@@ -1,9 +1,11 @@
-import { Body, Controller, Get, Param, Post, Query, Req, UnauthorizedException } from '@nestjs/common';
+import { Body, Controller, Get, Logger, Param, Post, Query, Req, UnauthorizedException } from '@nestjs/common';
 import type { Request } from 'express';
 import { PaymentsService } from './payments.service';
 
 @Controller('payments')
 export class PaymentsController {
+  private readonly logger = new Logger(PaymentsController.name);
+
   constructor(private service: PaymentsService) {}
 
   @Post('confirm/:orderId')
@@ -24,6 +26,10 @@ export class PaymentsController {
     const xSignature = req.headers['x-signature'];
     const xRequestId = req.headers['x-request-id'];
 
+    this.logger.log(
+      `Webhook recibido: dataId=${dataId ?? 'n/a'} type=${body?.type ?? query.type ?? 'n/a'} action=${body?.action ?? 'n/a'}`,
+    );
+
     const signatureResult = this.service.validateWebhookSignature({
       xSignature: Array.isArray(xSignature) ? xSignature[0] : xSignature,
       xRequestId: Array.isArray(xRequestId) ? xRequestId[0] : xRequestId,
@@ -31,6 +37,7 @@ export class PaymentsController {
     });
 
     if (!signatureResult.valid) {
+      this.logger.warn(`Webhook rechazado: ${signatureResult.reason}`);
       throw new UnauthorizedException(`Webhook inválido: ${signatureResult.reason}`);
     }
 

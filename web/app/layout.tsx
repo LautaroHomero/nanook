@@ -22,7 +22,7 @@ export default function RootLayout({
               <span className="logo-led" aria-hidden="true" />
               Nanook
             </Link>
-             <Link href="/pedir-producto" className="cart-link" style={{ marginRight: 12 }}>
+             <Link href="/pedir-producto" className="cart-link">
                 Pedir producto
             </Link>
             <PedalboardBadge />

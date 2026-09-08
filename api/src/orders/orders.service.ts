@@ -21,6 +21,13 @@ export class OrdersService {
     return order;
   }
 
+  async findAllForAdmin() {
+    return this.prisma.order.findMany({
+      include: { items: { include: { product: true } }, payment: true, shipment: true },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   async create(dto: CreateOrderDto) {
     if (dto.items.length === 0) {
       throw new BadRequestException('La orden necesita al menos un item');

@@ -12,8 +12,31 @@ export class ProductRequestsService {
     private config: ConfigService,
   ) {}
 
-  create(dto: CreateProductRequestDto) {
-    return this.prisma.productRequest.create({ data: dto });
+  async create(dto: CreateProductRequestDto) {
+    const request = await this.prisma.productRequest.create({ data: dto });
+
+    const adminEmail =
+      this.config.get<string>('ADMIN_NOTIFICATION_EMAIL') ||
+      this.config.get<string>('ADMIN_EMAIL');
+    if (adminEmail) {
+      try {
+        await this.notifications.notifyAdminNewProductRequest({
+          to: adminEmail,
+          name: request.name,
+          brand: request.brand,
+          category: request.category,
+          notes: request.notes,
+          buyerEmail: request.buyerEmail,
+          buyerPhone: request.buyerPhone,
+        });
+      } catch (err) {
+        // No queremos que un fallo de email tumbe la creación del pedido,
+        // pero lo dejamos logueado para poder diagnosticarlo.
+        console.error('No se pudo notificar al admin del nuevo pedido:', err);
+      }
+    }
+
+    return request;
   }
 
   findAllForAdmin(status?: string) {

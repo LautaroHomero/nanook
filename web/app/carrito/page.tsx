@@ -43,7 +43,7 @@ export default function CartPage() {
         <span>${cartTotal(items)}</span>
       </div>
       <Link href="/checkout">
-        <button>Ir a checkout</button>
+        <button className="btn-primary">Ir a checkout</button>
       </Link>
     </div>
   );

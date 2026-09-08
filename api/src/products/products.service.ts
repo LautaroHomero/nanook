@@ -1,10 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { StockAlertsService } from '../stock-alerts/stock-alerts.service';
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 
 @Injectable()
 export class ProductsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private stockAlerts: StockAlertsService,
+  ) {}
 
   // Catálogo público: solo productos activos
   findAllActive() {
@@ -102,8 +106,14 @@ export class ProductsService {
   }
 
   async update(id: string, dto: UpdateProductDto) {
-    await this.findOne(id);
-    return this.prisma.product.update({ where: { id }, data: dto });
+    const before = await this.findOne(id);
+    const updated = await this.prisma.product.update({ where: { id }, data: dto });
+
+    if (before.stock === 0 && dto.stock !== undefined && dto.stock > 0) {
+      await this.stockAlerts.notifyStockRestocked(id);
+    }
+
+    return updated;
   }
 
   async remove(id: string) {
