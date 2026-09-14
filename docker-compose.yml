@@ -26,20 +26,24 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://pedales:pedales@db:5432/pedales?schema=public
-      JWT_SECRET: dev-secret-change-me
-      ADMIN_EMAIL: admin@tienda.com
-      ADMIN_PASSWORD: admin123
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@tienda.com}
+      # Hash bcrypt de "admin123", SOLO para desarrollo local. Generá el
+      # tuyo con: npm run hash-password -- "tu-password" (dentro de api/)
+      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH:-$$2a$$10$$xWP7.s/TuuL.FQeDJu9k/u4lnCuH/zZRuhh/aGNUPk.M2.l.VUGsy}
       PORT: 3001
-      MP_MOCK: "false"
-      MP_ACCESS_TOKEN: ${MP_ACCESS_TOKEN:-APP_USR-2665813189459429-082714-6ddcce5fc59d6226cba3f31e1bec9d0d-3633650198}
+      # MP_MOCK=true por defecto: sin credenciales reales en .env, la API
+      # usa el proveedor mock y habilita la pantalla de "pago simulado".
+      MP_MOCK: ${MP_MOCK:-true}
+      MP_ACCESS_TOKEN: ${MP_ACCESS_TOKEN:-}
       MP_SUCCESS_URL: http://localhost:3003/checkout/success
       MP_FAILURE_URL: http://localhost:3003/checkout/failure
       MP_PENDING_URL: http://localhost:3003/checkout/pending
-      MP_WEBHOOK_SECRET: ${MP_WEBHOOK_SECRET:-REPLACE_WITH_YOUR_MERCADO_PAGO_WEBHOOK_SECRET}
+      MP_WEBHOOK_SECRET: ${MP_WEBHOOK_SECRET:-}
       MP_NOTIFICATION_URL: ${MP_NOTIFICATION_URL:-https://YOUR_PUBLIC_DOMAIN/api/payments/webhook}
       MP_CURRENCY_ID: ARS
       FRONTEND_URL: http://localhost:3003
-      ANDREANI_MOCK: "true"
+      ADMIN_URL: http://localhost:3002
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-onboarding@resend.dev}
       ADMIN_NOTIFICATION_EMAIL: ${ADMIN_NOTIFICATION_EMAIL:-}
@@ -49,6 +53,7 @@ services:
     volumes:
       - ./api:/app
       - /app/node_modules
+      - uploads_data:/app/uploads
 
   web:
     build: ./web
@@ -85,3 +90,4 @@ services:
 
 volumes:
   db_data:
+  uploads_data:

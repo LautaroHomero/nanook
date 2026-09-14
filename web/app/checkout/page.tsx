@@ -12,9 +12,15 @@ import {
   type ArgentinaProvinceOption,
 } from '@/lib/argentina-addresses';
 
+interface ShippingQuote {
+  sucursal: number;
+  domicilio: number;
+  estimatedDays: number;
+}
+
 export default function CheckoutPage() {
   const { items: cart } = useCart();
-  const [shippingCost, setShippingCost] = useState<number | null>(null);
+  const [shippingQuote, setShippingQuote] = useState<ShippingQuote | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [provinces, setProvinces] = useState<ArgentinaProvinceOption[]>([]);
@@ -40,6 +46,7 @@ export default function CheckoutPage() {
     shippingCity: '',
     shippingState: '',
     shippingZip: '',
+    shippingMethod: 'DOMICILIO' as 'SUCURSAL' | 'DOMICILIO',
   });
 
   useEffect(() => {
@@ -154,13 +161,16 @@ export default function CheckoutPage() {
     };
   }, [selectedCityId, streetQuery]);
 
-  async function handleZipBlur() {
-    if (!form.shippingZip) return;
+  async function quoteForProvince(province: string) {
+    if (!province) {
+      setShippingQuote(null);
+      return;
+    }
     try {
-      const quote = await quoteShipping(form.shippingZip);
-      setShippingCost(quote.cost);
+      const quote = await quoteShipping(province);
+      setShippingQuote(quote);
     } catch {
-      setShippingCost(null);
+      setShippingQuote(null);
     }
   }
 
@@ -172,6 +182,7 @@ export default function CheckoutPage() {
     setSelectedCityId('');
     setStreetQuery('');
     setStreetSuggestions([]);
+    quoteForProvince(option);
   }
 
   function handleCitySelect(option: string) {
@@ -232,6 +243,7 @@ export default function CheckoutPage() {
     return <p>El carrito está vacío.</p>;
   }
 
+  const shippingCost = shippingQuote ? shippingQuote[form.shippingMethod.toLowerCase() as 'sucursal' | 'domicilio'] : null;
   const total = cartTotal(cart) + (shippingCost ?? 0);
 
   return (
@@ -383,13 +395,33 @@ export default function CheckoutPage() {
             placeholder="Código postal"
             value={form.shippingZip}
             onChange={(e) => update('shippingZip', e.target.value)}
-            onBlur={handleZipBlur}
             required
             disabled={!selectedCityId}
           />
         </label>
 
-        {shippingCost !== null && <p>Costo de envío estimado: ${shippingCost}</p>}
+        {shippingQuote && (
+          <div className="shipping-method-options">
+            <label>
+              <input
+                type="radio"
+                name="shippingMethod"
+                checked={form.shippingMethod === 'DOMICILIO'}
+                onChange={() => update('shippingMethod', 'DOMICILIO')}
+              />
+              Envío a domicilio — ${shippingQuote.domicilio}
+            </label>
+            <label>
+              <input
+                type="radio"
+                name="shippingMethod"
+                checked={form.shippingMethod === 'SUCURSAL'}
+                onChange={() => update('shippingMethod', 'SUCURSAL')}
+              />
+              Retiro en sucursal — ${shippingQuote.sucursal}
+            </label>
+          </div>
+        )}
 
         <div className="total-row">
           <span>Total</span>

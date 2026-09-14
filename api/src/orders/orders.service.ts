@@ -28,6 +28,17 @@ export class OrdersService {
     });
   }
 
+  async updateShipment(orderId: string, status: string, note?: string) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new NotFoundException('Orden no encontrada');
+
+    return this.prisma.shipment.upsert({
+      where: { orderId },
+      create: { orderId, provider: 'manual', status, note },
+      update: { status, ...(note !== undefined ? { note } : {}) },
+    });
+  }
+
   async create(dto: CreateOrderDto) {
     if (dto.items.length === 0) {
       throw new BadRequestException('La orden necesita al menos un item');
@@ -58,12 +69,10 @@ export class OrdersService {
       };
     });
 
-    // 2. Cotizar envío
-    const shippingQuote = await this.shipping.quote({
-      zip: dto.shippingZip,
-    });
+    // 2. Cotizar envío (tarifa fija manual por provincia + método elegido)
+    const shippingCost = await this.shipping.costForMethod(dto.shippingState, dto.shippingMethod);
 
-    const total = itemsTotal + shippingQuote.cost;
+    const total = itemsTotal + shippingCost;
 
     // 3. Crear orden con items y validar stock, pero NO descontarlo todavía.
     // El stock se descuenta solo cuando el pago queda aprobado en Mercado Pago.
@@ -77,7 +86,8 @@ export class OrdersService {
         shippingCity: dto.shippingCity,
         shippingState: dto.shippingState,
         shippingZip: dto.shippingZip,
-        shippingCost: shippingQuote.cost,
+        shippingMethod: dto.shippingMethod,
+        shippingCost,
         itemsTotal,
         total,
         items: { create: itemsData },

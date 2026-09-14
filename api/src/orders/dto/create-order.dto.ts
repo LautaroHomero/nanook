@@ -2,11 +2,14 @@ import { Type } from 'class-transformer';
 import {
   IsArray,
   IsEmail,
+  IsIn,
   IsInt,
   IsString,
   Min,
   ValidateNested,
 } from 'class-validator';
+
+export const SHIPPING_METHODS = ['SUCURSAL', 'DOMICILIO'] as const;
 
 export class OrderItemInput {
   @IsString()
@@ -46,4 +49,7 @@ export class CreateOrderDto {
 
   @IsString()
   shippingZip: string;
+
+  @IsIn(SHIPPING_METHODS)
+  shippingMethod: (typeof SHIPPING_METHODS)[number];
 }

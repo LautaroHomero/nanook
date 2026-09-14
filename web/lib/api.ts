@@ -58,11 +58,11 @@ export async function getProduct(id: string): Promise<Product> {
   return res.json();
 }
 
-export async function quoteShipping(zip: string) {
+export async function quoteShipping(province: string) {
   const res = await fetch(`${API_URL}/api/shipping/quote`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ zip }),
+    body: JSON.stringify({ province }),
   });
   if (!res.ok) throw new Error('No se pudo cotizar el envío');
   return res.json();
@@ -78,6 +78,7 @@ export interface CheckoutPayload {
   shippingCity: string;
   shippingState: string;
   shippingZip: string;
+  shippingMethod: 'SUCURSAL' | 'DOMICILIO';
 }
 
 export async function createOrder(payload: CheckoutPayload) {
@@ -90,14 +91,6 @@ export async function createOrder(payload: CheckoutPayload) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.message || 'No se pudo crear la orden');
   }
-  return res.json();
-}
-
-export async function confirmOrderPayment(orderId: string) {
-  const res = await fetch(`${API_URL}/api/payments/confirm/${orderId}`, {
-    method: 'POST',
-  });
-  if (!res.ok) throw new Error('No se pudo confirmar el pago');
   return res.json();
 }
 

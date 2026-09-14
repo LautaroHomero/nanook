@@ -12,13 +12,18 @@ import {
 @Injectable()
 export class PaymentsService {
   private provider: PaymentProvider;
+  private readonly mockMode: boolean;
 
   constructor(private prisma: PrismaService) {
-    const useMock = process.env.MP_MOCK === 'true' || !process.env.MP_ACCESS_TOKEN;
+    this.mockMode = process.env.MP_MOCK === 'true' || !process.env.MP_ACCESS_TOKEN;
 
-    this.provider = useMock
+    this.provider = this.mockMode
       ? new MockMercadoPagoProvider()
       : new MercadoPagoProvider(process.env.MP_ACCESS_TOKEN);
+  }
+
+  isMockMode() {
+    return this.mockMode;
   }
 
   async createPreferenceForOrder(input: CreatePreferenceInput) {
@@ -371,10 +376,18 @@ export class PaymentsService {
         data: { status: 'approved' },
       });
 
+      // El envío se coordina a mano (ver panel admin /envios y /pedidos):
+      // acá solo dejamos la orden marcada como "pendiente de preparar".
+      await tx.shipment.upsert({
+        where: { orderId },
+        create: { orderId, provider: 'manual', status: 'pending' },
+        update: {},
+      });
+
       return tx.order.update({
         where: { id: orderId },
         data: { status: 'PAID' },
-        include: { items: { include: { product: true } }, payment: true },
+        include: { items: { include: { product: true } }, payment: true, shipment: true },
       });
     });
   }

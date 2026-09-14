@@ -3,13 +3,20 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Order, clearToken, getAllOrders, getToken } from '@/lib/api';
+import { Order, clearToken, getAllOrders, getToken, updateOrderShipment } from '@/lib/api';
 
 const ORDER_STATUS_LABEL: Record<Order['status'], string> = {
   PENDING: 'Pendiente',
   PAID: 'Pagada',
   SHIPPED: 'Enviada',
   CANCELLED: 'Cancelada',
+};
+
+const SHIPMENT_STATUS_LABEL: Record<string, string> = {
+  pending: 'Pendiente de preparar',
+  preparing: 'Preparando',
+  shipped: 'Enviado',
+  delivered: 'Entregado',
 };
 
 function formatMoney(value: number) {
@@ -26,6 +33,7 @@ export default function PedidosPage() {
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [savingShipmentId, setSavingShipmentId] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -53,6 +61,18 @@ export default function PedidosPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  async function handleShipmentStatusChange(orderId: string, status: string) {
+    setSavingShipmentId(orderId);
+    try {
+      await updateOrderShipment(orderId, status);
+      await load();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setSavingShipmentId(null);
+    }
+  }
+
   if (loading) return <p>Cargando...</p>;
 
   return (
@@ -75,6 +95,7 @@ export default function PedidosPage() {
         <Link href="/pedidos"><button>Compras</button></Link>
         <Link href="/solicitudes"><button className="secondary">Pedidos de producto</button></Link>
         <Link href="/avisos"><button className="secondary">Avisos de stock</button></Link>
+        <Link href="/envios"><button className="secondary">Envíos</button></Link>
         <button className="secondary" onClick={load}>Actualizar</button>
       </div>
 
@@ -126,13 +147,30 @@ export default function PedidosPage() {
                         <p style={{ margin: '4px 0' }}>
                           <strong>Envío:</strong> {order.shippingStreet} {order.shippingNumber},{' '}
                           {order.shippingCity}, {order.shippingState} ({order.shippingZip}) —{' '}
-                          {order.buyerPhone}
+                          {order.buyerPhone} ·{' '}
+                          {order.shippingMethod === 'SUCURSAL' ? 'retiro en sucursal' : 'entrega a domicilio'}
                         </p>
                         <p style={{ margin: '4px 0' }}>
                           <strong>Pago:</strong> {order.payment?.provider ?? '-'} · estado{' '}
                           {order.payment?.status ?? '-'} · id externo{' '}
                           {order.payment?.externalId ?? '-'}
                         </p>
+                        {order.shipment && (
+                          <p style={{ margin: '4px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <strong>Envío:</strong>
+                            <select
+                              value={order.shipment.status}
+                              disabled={savingShipmentId === order.id}
+                              onChange={(e) => handleShipmentStatusChange(order.id, e.target.value)}
+                            >
+                              {Object.entries(SHIPMENT_STATUS_LABEL).map(([value, label]) => (
+                                <option key={value} value={value}>
+                                  {label}
+                                </option>
+                              ))}
+                            </select>
+                          </p>
+                        )}
                         <p style={{ margin: '4px 0 8px' }}>
                           <strong>Items ({formatMoney(order.itemsTotal)} + envío{' '}
                           {formatMoney(order.shippingCost)}):</strong>
