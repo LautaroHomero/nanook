@@ -5,8 +5,8 @@ services:
     plan: free
     region: ohio
     rootDir: api
-    dockerfilePath: ./Dockerfile.prod
-    dockerContext: .
+    dockerfilePath: ./api/Dockerfile.prod
+    dockerContext: ./api
     healthCheckPath: /api
     envVars:
       - key: DATABASE_URL
@@ -54,8 +54,8 @@ services:
     plan: free
     region: ohio
     rootDir: web
-    dockerfilePath: ./Dockerfile.prod
-    dockerContext: .
+    dockerfilePath: ./web/Dockerfile.prod
+    dockerContext: ./web
     envVars:
       - key: NEXT_PUBLIC_API_URL
         value: https://api.tiendananook.store
@@ -68,8 +68,8 @@ services:
     plan: free
     region: ohio
     rootDir: admin
-    dockerfilePath: ./Dockerfile.prod
-    dockerContext: .
+    dockerfilePath: ./admin/Dockerfile.prod
+    dockerContext: ./admin
     envVars:
       - key: NEXT_PUBLIC_API_URL
         value: https://api.tiendananook.store
