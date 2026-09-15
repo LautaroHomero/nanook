@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from 'crypto';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notification.service';
 import {
   CreatePreferenceInput,
   MercadoPagoProvider,
@@ -11,10 +12,14 @@ import {
 
 @Injectable()
 export class PaymentsService {
+  private readonly logger = new Logger(PaymentsService.name);
   private provider: PaymentProvider;
   private readonly mockMode: boolean;
 
-  constructor(private prisma: PrismaService) {
+  constructor(
+    private prisma: PrismaService,
+    private notifications: NotificationsService,
+  ) {
     this.mockMode = process.env.MP_MOCK === 'true' || !process.env.MP_ACCESS_TOKEN;
 
     this.provider = this.mockMode
@@ -330,7 +335,9 @@ export class PaymentsService {
   // Simula la confirmación de pago (webhook real de MP en el futuro llamará
   // a un endpoint parecido a este, validando la firma de MP)
   async markAsPaid(orderId: string) {
-    return this.prisma.$transaction(async (tx) => {
+    let justPaid = false;
+
+    const result = await this.prisma.$transaction(async (tx) => {
       const order = await tx.order.findUnique({
         where: { id: orderId },
         include: { items: true, payment: true },
@@ -353,6 +360,8 @@ export class PaymentsService {
           payment: { ...(order.payment ?? {}), status: 'approved' },
         };
       }
+
+      justPaid = true;
 
       for (const item of order.items) {
         const product = await tx.product.findUnique({ where: { id: item.productId } });
@@ -390,5 +399,48 @@ export class PaymentsService {
         include: { items: { include: { product: true } }, payment: true, shipment: true },
       });
     });
+
+    // Mails fuera de la transacción, y a propósito "best effort": si Resend
+    // falla o no está configurado, no queremos que el pago falle por eso.
+    // justPaid solo es true en la rama que devuelve items con el producto
+    // incluido (ver arriba), así que el cast es seguro.
+    if (justPaid) {
+      const order = result as typeof result & {
+        items: { quantity: number; unitPrice: unknown; product: { name: string } }[];
+      };
+      const itemsForEmail = order.items.map((item) => ({
+        name: item.product.name,
+        quantity: item.quantity,
+        unitPrice: Number(item.unitPrice),
+      }));
+
+      this.notifications
+        .notifyOrderPaid({
+          to: order.buyerEmail,
+          buyerName: order.buyerName,
+          orderId: order.id,
+          items: itemsForEmail,
+          itemsTotal: Number(order.itemsTotal),
+          shippingCost: Number(order.shippingCost),
+          shippingMethod: order.shippingMethod,
+          total: Number(order.total),
+        })
+        .catch((err) => this.logger.warn(`No se pudo mandar el mail de confirmación: ${err.message}`));
+
+      const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL;
+      if (adminEmail) {
+        this.notifications
+          .notifyAdminNewOrderPaid({
+            to: adminEmail,
+            orderId: order.id,
+            buyerName: order.buyerName,
+            buyerEmail: order.buyerEmail,
+            total: Number(order.total),
+          })
+          .catch((err) => this.logger.warn(`No se pudo avisar al admin de la venta: ${err.message}`));
+      }
+    }
+
+    return result;
   }
 }
