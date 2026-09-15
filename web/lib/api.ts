@@ -17,8 +17,17 @@ export interface Product {
   hayStock: boolean;
 }
 
+// Timeout corto para los fetch que corren durante el render del servidor:
+// si la API no responde rápido (por ejemplo, un dominio mal configurado),
+// no queremos que la página entera quede colgada — mejor falla rápido y
+// que el catálogo se muestre vacío.
+const SSR_FETCH_TIMEOUT_MS = 8000;
+
 export async function getProducts(): Promise<Product[]> {
-  const res = await fetch(`${API_URL}/api/products`, { cache: 'no-store' });
+  const res = await fetch(`${API_URL}/api/products`, {
+    cache: 'no-store',
+    signal: AbortSignal.timeout(SSR_FETCH_TIMEOUT_MS),
+  });
   if (!res.ok) throw new Error('No se pudieron cargar los productos');
   return res.json();
 }
@@ -32,20 +41,29 @@ export async function searchProducts(params: { q?: string; minPrice?: number; ma
   if (params.categoryId) qs.set('categoryId', params.categoryId);
   if (params.brandId) qs.set('brandId', params.brandId);
 
-  const res = await fetch(`${API_URL}/api/products/search?${qs.toString()}`, { cache: 'no-store' });
+  const res = await fetch(`${API_URL}/api/products/search?${qs.toString()}`, {
+    cache: 'no-store',
+    signal: AbortSignal.timeout(SSR_FETCH_TIMEOUT_MS),
+  });
   if (!res.ok) throw new Error('No se pudieron buscar los productos');
   return res.json();
 }
 
 export async function getCategories() {
-  const res = await fetch(`${API_URL}/api/categories`, { cache: 'no-store' });
+  const res = await fetch(`${API_URL}/api/categories`, {
+    cache: 'no-store',
+    signal: AbortSignal.timeout(SSR_FETCH_TIMEOUT_MS),
+  });
   if (!res.ok) throw new Error('No se pudieron cargar las categorías');
   return res.json();
 }
 
 export async function getBrands(categoryId?: string) {
   const qs = categoryId ? `?categoryId=${encodeURIComponent(categoryId)}` : '';
-  const res = await fetch(`${API_URL}/api/brands${qs}`, { cache: 'no-store' });
+  const res = await fetch(`${API_URL}/api/brands${qs}`, {
+    cache: 'no-store',
+    signal: AbortSignal.timeout(SSR_FETCH_TIMEOUT_MS),
+  });
   if (!res.ok) throw new Error('No se pudieron cargar las marcas');
   return res.json();
 }
@@ -53,6 +71,7 @@ export async function getBrands(categoryId?: string) {
 export async function getProduct(id: string): Promise<Product> {
   const res = await fetch(`${API_URL}/api/products/${id}`, {
     cache: 'no-store',
+    signal: AbortSignal.timeout(SSR_FETCH_TIMEOUT_MS),
   });
   if (!res.ok) throw new Error('Producto no encontrado');
   return res.json();

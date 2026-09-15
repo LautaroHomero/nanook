@@ -18,28 +18,31 @@ services:
         sync: false
       - key: PORT
         value: 3001
+      # OJO: apuntan a las URLs de Render, no al dominio final. Cuando
+      # tiendananook.store esté conectado de verdad (DNS + dominio custom
+      # en cada servicio), cambiar estos 8 valores por los de producción.
       - key: API_PUBLIC_URL
-        value: https://api.tiendananook.store
+        value: https://nanook-api.onrender.com
       - key: MP_MOCK
         value: true # pasar a "false" cuando estén activas las credenciales de producción de MP
       - key: MP_ACCESS_TOKEN
         sync: false
       - key: MP_SUCCESS_URL
-        value: https://tiendananook.store/checkout/success
+        value: https://nanook-web.onrender.com/checkout/success
       - key: MP_FAILURE_URL
-        value: https://tiendananook.store/checkout/failure
+        value: https://nanook-web.onrender.com/checkout/failure
       - key: MP_PENDING_URL
-        value: https://tiendananook.store/checkout/pending
+        value: https://nanook-web.onrender.com/checkout/pending
       - key: MP_WEBHOOK_SECRET
         sync: false
       - key: MP_NOTIFICATION_URL
-        value: https://api.tiendananook.store/api/payments/webhook
+        value: https://nanook-api.onrender.com/api/payments/webhook
       - key: MP_CURRENCY_ID
         value: ARS
       - key: FRONTEND_URL
-        value: https://tiendananook.store
+        value: https://nanook-web.onrender.com
       - key: ADMIN_URL
-        value: https://admin.tiendananook.store
+        value: https://nanook-admin.onrender.com
       - key: RESEND_API_KEY
         sync: false
       - key: RESEND_FROM_EMAIL
@@ -56,9 +59,9 @@ services:
     dockerContext: ./web
     envVars:
       - key: NEXT_PUBLIC_API_URL
-        value: https://api.tiendananook.store
+        value: https://nanook-api.onrender.com
       - key: API_INTERNAL_URL
-        value: https://api.tiendananook.store
+        value: https://nanook-api.onrender.com
 
   - type: web
     name: nanook-admin
@@ -69,4 +72,4 @@ services:
     dockerContext: ./admin
     envVars:
       - key: NEXT_PUBLIC_API_URL
-        value: https://api.tiendananook.store
+        value: https://nanook-api.onrender.com
