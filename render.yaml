@@ -4,7 +4,6 @@ services:
     runtime: docker
     plan: free
     region: ohio
-    rootDir: api
     dockerfilePath: ./api/Dockerfile.prod
     dockerContext: ./api
     healthCheckPath: /api
@@ -53,7 +52,6 @@ services:
     runtime: docker
     plan: free
     region: ohio
-    rootDir: web
     dockerfilePath: ./web/Dockerfile.prod
     dockerContext: ./web
     envVars:
@@ -67,7 +65,6 @@ services:
     runtime: docker
     plan: free
     region: ohio
-    rootDir: admin
     dockerfilePath: ./admin/Dockerfile.prod
     dockerContext: ./admin
     envVars:
