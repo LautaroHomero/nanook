@@ -14,6 +14,7 @@ import { UploadsModule } from './uploads/uploads.module';
 import { NotificationsModule } from './notifications/notification.module';
 import { ProductRequestsModule } from './product-request/product-request.module';
 import { StockAlertsModule } from './stock-alerts/stock-alerts.module';
+import { AppController } from './app.controller';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { StockAlertsModule } from './stock-alerts/stock-alerts.module';
     ProductRequestsModule,
     StockAlertsModule,
   ],
+  controllers: [AppController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}
