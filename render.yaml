@@ -50,28 +50,7 @@ services:
       - key: ADMIN_NOTIFICATION_EMAIL
         sync: false
 
-  - type: web
-    name: nanook-web
-    runtime: docker
-    plan: free
-    region: ohio
-    dockerfilePath: ./web/Dockerfile.prod
-    dockerContext: ./web
-    healthCheckPath: /
-    envVars:
-      - key: NEXT_PUBLIC_API_URL
-        value: https://nanook-api.onrender.com
-      - key: API_INTERNAL_URL
-        value: https://nanook-api.onrender.com
-
-  - type: web
-    name: nanook-admin
-    runtime: docker
-    plan: free
-    region: ohio
-    dockerfilePath: ./admin/Dockerfile.prod
-    dockerContext: ./admin
-    healthCheckPath: /
-    envVars:
-      - key: NEXT_PUBLIC_API_URL
-        value: https://nanook-api.onrender.com
+# web y admin se despliegan en Vercel (Next.js nativo, sin Docker), cada
+# uno como su propio proyecto con "Root Directory" = web/ o admin/. Los
+# Dockerfile.prod de esas dos carpetas quedan sin uso por si en el futuro
+# se decide volver a un hosting basado en contenedores.
