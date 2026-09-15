@@ -18,9 +18,9 @@ services:
         sync: false
       - key: PORT
         value: 3001
-      # OJO: apuntan a las URLs de Render, no al dominio final. Cuando
-      # tiendananook.store esté conectado de verdad (DNS + dominio custom
-      # en cada servicio), cambiar estos 8 valores por los de producción.
+      # api.tiendananook.store todavía no está conectado — dejamos
+      # API_PUBLIC_URL y MP_NOTIFICATION_URL con la URL de Render hasta que
+      # conectemos ese dominio (queda para el final, a propósito).
       - key: API_PUBLIC_URL
         value: https://nanook-api.onrender.com
       - key: MP_MOCK
@@ -28,11 +28,11 @@ services:
       - key: MP_ACCESS_TOKEN
         sync: false
       - key: MP_SUCCESS_URL
-        value: https://nanook-web.onrender.com/checkout/success
+        value: https://tiendananook.store/checkout/success
       - key: MP_FAILURE_URL
-        value: https://nanook-web.onrender.com/checkout/failure
+        value: https://tiendananook.store/checkout/failure
       - key: MP_PENDING_URL
-        value: https://nanook-web.onrender.com/checkout/pending
+        value: https://tiendananook.store/checkout/pending
       - key: MP_WEBHOOK_SECRET
         sync: false
       - key: MP_NOTIFICATION_URL
@@ -40,9 +40,9 @@ services:
       - key: MP_CURRENCY_ID
         value: ARS
       - key: FRONTEND_URL
-        value: https://nanook-web.onrender.com
+        value: https://tiendananook.store
       - key: ADMIN_URL
-        value: https://nanook-admin.onrender.com
+        value: https://admin.tiendananook.store
       - key: RESEND_API_KEY
         sync: false
       - key: RESEND_FROM_EMAIL
@@ -57,6 +57,7 @@ services:
     region: ohio
     dockerfilePath: ./web/Dockerfile.prod
     dockerContext: ./web
+    healthCheckPath: /
     envVars:
       - key: NEXT_PUBLIC_API_URL
         value: https://nanook-api.onrender.com
@@ -70,6 +71,7 @@ services:
     region: ohio
     dockerfilePath: ./admin/Dockerfile.prod
     dockerContext: ./admin
+    healthCheckPath: /
     envVars:
       - key: NEXT_PUBLIC_API_URL
         value: https://nanook-api.onrender.com
