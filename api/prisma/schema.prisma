@@ -8,6 +8,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum ShippingMethod {
+  SUCURSAL
+  DOMICILIO
+}
+
 enum OrderStatus {
   PENDING
   PAID
@@ -61,6 +66,9 @@ model Product {
   orderItems   OrderItem[]
   stockAlerts  StockAlert[]
   productRequests ProductRequest[]
+
+  @@index([categoryId])
+  @@index([brandId])
 }
 
 model Order {
@@ -76,6 +84,7 @@ model Order {
   shippingCity    String
   shippingState   String
   shippingZip     String
+  shippingMethod  ShippingMethod @default(DOMICILIO)
   shippingCost    Decimal     @db.Decimal(10, 2) @default(0)
 
   itemsTotal      Decimal     @db.Decimal(10, 2)
@@ -97,6 +106,22 @@ model OrderItem {
   productId  String
   quantity   Int
   unitPrice  Decimal @db.Decimal(10, 2)
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+// Tarifa de envío fija por provincia, cargada y mantenida a mano por el
+// admin (reemplaza la cotización automática de Andreani: el envío en sí
+// se coordina manualmente una vez que la orden está pagada).
+model ShippingRate {
+  id             String   @id @default(uuid())
+  province       String   @unique
+  // Retiro en sucursal (Andreani u otro correo) vs. entrega a domicilio.
+  costSucursal   Decimal  @db.Decimal(10, 2)
+  costDomicilio  Decimal  @db.Decimal(10, 2)
+  estimatedDays  Int      @default(7)
+  updatedAt      DateTime @updatedAt
 }
 
 model Payment {
@@ -115,9 +140,11 @@ model Shipment {
   id           String   @id @default(uuid())
   order        Order    @relation(fields: [orderId], references: [id])
   orderId      String   @unique
-  provider     String   @default("andreani")
+  provider     String   @default("manual")
   trackingId   String?
+  // pending -> preparing -> shipped -> delivered (a mano, desde el panel admin)
   status       String   @default("pending")
+  note         String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
@@ -138,6 +165,8 @@ model ProductRequest {
   linkedProductId String?
   createdAt     DateTime              @default(now())
   fulfilledAt   DateTime?
+
+  @@index([linkedProductId])
 }
 
 // Alguien pide que le avisen cuando un producto puntual (que sí existe, pero
@@ -151,4 +180,6 @@ model StockAlert {
   notified   Boolean  @default(false)
   createdAt  DateTime @default(now())
   notifiedAt DateTime?
+
+  @@index([productId])
 }

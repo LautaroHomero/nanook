@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import * as bcrypt from 'bcryptjs';
 import { LoginDto } from './dto/login.dto';
 
 @Injectable()
@@ -12,9 +13,15 @@ export class AdminAuthService {
 
   async login(dto: LoginDto) {
     const adminEmail = this.config.get<string>('ADMIN_EMAIL');
-    const adminPassword = this.config.get<string>('ADMIN_PASSWORD');
+    const adminPasswordHash = this.config.get<string>('ADMIN_PASSWORD_HASH');
 
-    if (dto.email !== adminEmail || dto.password !== adminPassword) {
+    if (!adminEmail || !adminPasswordHash) {
+      throw new Error('Falta configurar ADMIN_EMAIL / ADMIN_PASSWORD_HASH');
+    }
+
+    const passwordMatches = await bcrypt.compare(dto.password, adminPasswordHash);
+
+    if (dto.email !== adminEmail || !passwordMatches) {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 

@@ -107,6 +107,7 @@ export default function ProductsPage() {
         <Link href="/pedidos"><button className="secondary">Compras</button></Link>
         <Link href="/solicitudes"><button className="secondary">Pedidos de producto</button></Link>
         <Link href="/avisos"><button className="secondary">Avisos de stock</button></Link>
+        <Link href="/envios"><button className="secondary">Envíos</button></Link>
       </div>
 
       {!showNew && !editing && (

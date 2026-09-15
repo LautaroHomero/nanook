@@ -89,6 +89,7 @@ export interface Order {
   shippingCity: string;
   shippingState: string;
   shippingZip: string;
+  shippingMethod: 'SUCURSAL' | 'DOMICILIO';
   shippingCost: number;
   itemsTotal: number;
   total: number;
@@ -318,5 +319,48 @@ export async function addBrand(name: string, categoryId?: string) {
 export async function deleteBrand(id: string) {
   const res = await fetch(`${API_URL}/api/brands/${encodeURIComponent(id)}`, { method: 'DELETE', headers: authHeaders() });
   if (!res.ok) throw new Error('No se pudo eliminar la marca');
+  return res.json();
+}
+
+export interface ShippingRate {
+  province: string;
+  costSucursal: number;
+  costDomicilio: number;
+  estimatedDays: number;
+  configured: boolean;
+}
+
+export async function getShippingRates(): Promise<ShippingRate[]> {
+  const res = await fetch(`${API_URL}/api/shipping/rates/admin`, {
+    headers: authHeaders(),
+    cache: 'no-store',
+  });
+  if (res.status === 401) throw new Error('UNAUTHORIZED');
+  if (!res.ok) throw new Error('No se pudieron cargar las tarifas de envío');
+  return res.json();
+}
+
+export async function setShippingRate(
+  province: string,
+  costSucursal: number,
+  costDomicilio: number,
+  estimatedDays?: number,
+) {
+  const res = await fetch(`${API_URL}/api/shipping/rates/admin/${encodeURIComponent(province)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ costSucursal, costDomicilio, estimatedDays }),
+  });
+  if (!res.ok) throw new Error('No se pudo guardar la tarifa');
+  return res.json();
+}
+
+export async function updateOrderShipment(orderId: string, status: string, note?: string) {
+  const res = await fetch(`${API_URL}/api/orders/${orderId}/shipment`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ status, note }),
+  });
+  if (!res.ok) throw new Error('No se pudo actualizar el envío');
   return res.json();
 }

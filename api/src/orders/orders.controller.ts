@@ -1,6 +1,7 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { UpdateShipmentDto } from './dto/update-shipment.dto';
 import { AdminAuthGuard } from '../admin-auth/admin-auth.guard';
 
 @Controller('orders')
@@ -22,5 +23,12 @@ export class OrdersController {
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.service.findOne(id);
+  }
+
+  // Admin: actualiza el estado del envío manual (pendiente/preparando/enviado/entregado).
+  @UseGuards(AdminAuthGuard)
+  @Patch(':id/shipment')
+  updateShipment(@Param('id') id: string, @Body() dto: UpdateShipmentDto) {
+    return this.service.updateShipment(id, dto.status, dto.note);
   }
 }

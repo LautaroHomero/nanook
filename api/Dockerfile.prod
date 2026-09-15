@@ -1,23 +1,34 @@
-FROM node:20-alpine
-
+FROM node:20-alpine AS build
 RUN apk add --no-cache openssl
-
 WORKDIR /app
-
 COPY package*.json ./
-RUN npm install
-
+RUN npm ci
 COPY . .
 RUN npx prisma generate
 RUN npm run build
-# Si esto falla, el build de Render se corta acá mismo con el motivo exacto,
-# en vez de arrancar el contenedor y recién ahí explotar con "Cannot find
-# module dist/main" sin contexto.
+# Si esto falla, el build se corta acá mismo con el motivo exacto, en vez de
+# arrancar el contenedor y recién ahí explotar con "Cannot find module
+# dist/main" sin contexto.
 RUN ls -la dist && test -f dist/main.js || (echo "❌ nest build no generó dist/main.js" && exit 1)
+
+FROM node:20-alpine AS runtime
+RUN apk add --no-cache openssl
+WORKDIR /app
+ENV NODE_ENV=production
+
+COPY package*.json ./
+RUN npm ci --omit=dev
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/prisma ./prisma
+COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
+
+RUN addgroup -S app && adduser -S app -G app && mkdir -p uploads && chown -R app:app /app
+USER app
 
 EXPOSE 3001
 
-# A diferencia del Dockerfile de desarrollo: compila en vez de correr con
-# --watch, y usa "migrate deploy" (aplica migraciones versionadas) en vez de
-# "db push --accept-data-loss" (que puede pisar datos reales sin avisar).
+# A diferencia del Dockerfile de desarrollo: corre sobre el build compilado
+# (no --watch), sin devDependencies, como usuario sin privilegios, y usa
+# "migrate deploy" (aplica migraciones versionadas) en vez de "db push
+# --accept-data-loss" (que puede pisar datos reales sin avisar).
 CMD ["sh", "-c", "npx prisma migrate deploy && npm run start:prod"]

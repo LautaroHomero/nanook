@@ -1,4 +1,15 @@
-import { Body, Controller, Get, Logger, Param, Post, Query, Req, UnauthorizedException } from '@nestjs/common';
+import {
+  Controller,
+  ForbiddenException,
+  Get,
+  Logger,
+  Param,
+  Post,
+  Body,
+  Query,
+  Req,
+  UnauthorizedException,
+} from '@nestjs/common';
 import type { Request } from 'express';
 import { PaymentsService } from './payments.service';
 
@@ -8,15 +19,16 @@ export class PaymentsController {
 
   constructor(private service: PaymentsService) {}
 
-  @Post('confirm/:orderId')
-  confirm(@Param('orderId') orderId: string) {
-    return this.service.markAsPaid(orderId);
-  }
-
-  // MVP: confirma el pago manualmente (reemplaza al webhook real de MP,
-  // que en producción llama acá solo tras validar la notificación).
+  // Solo existe para la pantalla de "pago simulado" (checkout/mock-pago),
+  // que reemplaza el checkout real de MP mientras MP_MOCK=true. Si ya hay
+  // credenciales reales configuradas (MP_MOCK=false), este endpoint queda
+  // deshabilitado: la confirmación real de pago pasa únicamente por el
+  // webhook firmado o por /payments/resolve (que valida contra la API de MP).
   @Post('mock-confirm/:orderId')
   mockConfirm(@Param('orderId') orderId: string) {
+    if (!this.service.isMockMode()) {
+      throw new ForbiddenException('El pago simulado está deshabilitado en este entorno');
+    }
     return this.service.markAsPaid(orderId);
   }
 
