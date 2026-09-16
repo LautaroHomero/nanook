@@ -49,6 +49,12 @@ services:
         sync: false
       - key: ADMIN_NOTIFICATION_EMAIL
         sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
 
 # web y admin se despliegan en Vercel (Next.js nativo, sin Docker), cada
 # uno como su propio proyecto con "Root Directory" = web/ o admin/. Los
