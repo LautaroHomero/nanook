@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
+  CloudinaryStorageProvider,
   ImageStorageProvider,
   LocalDiskStorageProvider,
   UploadedFileInput,
@@ -11,10 +12,20 @@ export class UploadsService {
   private provider: ImageStorageProvider;
 
   constructor(config: ConfigService) {
-    const publicBaseUrl = config.get<string>('API_PUBLIC_URL') || 'http://localhost:3001';
-    // TODO: cuando quieras pasar a un storage externo (S3, Cloudinary),
-    // instanciá esa implementación acá en vez de LocalDiskStorageProvider.
-    this.provider = new LocalDiskStorageProvider(publicBaseUrl);
+    const cloudName = config.get<string>('CLOUDINARY_CLOUD_NAME');
+    const apiKey = config.get<string>('CLOUDINARY_API_KEY');
+    const apiSecret = config.get<string>('CLOUDINARY_API_SECRET');
+
+    if (cloudName && apiKey && apiSecret) {
+      this.provider = new CloudinaryStorageProvider({ cloudName, apiKey, apiSecret });
+    } else {
+      // Sin credenciales de Cloudinary (típico en desarrollo local): guarda
+      // en el disco del contenedor. En producción (Render, sin disco
+      // persistente en el plan free) esto se pierde en cada deploy, por eso
+      // ahí sí hacen falta las tres variables de Cloudinary.
+      const publicBaseUrl = config.get<string>('API_PUBLIC_URL') || 'http://localhost:3001';
+      this.provider = new LocalDiskStorageProvider(publicBaseUrl);
+    }
   }
 
   async saveMany(files: UploadedFileInput[]) {

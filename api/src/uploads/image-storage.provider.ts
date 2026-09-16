@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import { existsSync, mkdirSync } from 'fs';
 import { writeFile } from 'fs/promises';
 import { join } from 'path';
+import { v2 as cloudinary } from 'cloudinary';
 
 export interface UploadedFileInput {
   buffer: Buffer;
@@ -21,10 +22,10 @@ export interface ImageStorageProvider {
 // reconstrucciones de la imagen.
 export const UPLOAD_DIR = join(process.cwd(), 'uploads');
 
-// Implementación local (MVP): guarda el archivo en disco, dentro del
-// contenedor. Si el día de mañana pasás a S3/Cloudinary, escribís otra clase
-// que implemente ImageStorageProvider y la instanciás en uploads.service.ts
-// en vez de esta — el resto de la app no se entera del cambio.
+// Guarda el archivo en disco, dentro del contenedor. Se usa en desarrollo
+// local (con el volumen de docker-compose) o como fallback si no hay
+// credenciales de Cloudinary configuradas — ver CloudinaryStorageProvider,
+// que es lo que corre en producción.
 export class LocalDiskStorageProvider implements ImageStorageProvider {
   constructor(private publicBaseUrl: string) {
     if (!existsSync(UPLOAD_DIR)) {
@@ -37,5 +38,37 @@ export class LocalDiskStorageProvider implements ImageStorageProvider {
     const filename = `${randomUUID()}.${ext}`;
     await writeFile(join(UPLOAD_DIR, filename), file.buffer);
     return { url: `${this.publicBaseUrl}/uploads/${filename}` };
+  }
+}
+
+// Sube el archivo a Cloudinary en vez de al disco del contenedor: en Render
+// (sin disco persistente en el plan free) el disco local se borra en cada
+// deploy, así que las fotos de producto necesitan vivir en un storage externo.
+export class CloudinaryStorageProvider implements ImageStorageProvider {
+  constructor(credentials: { cloudName: string; apiKey: string; apiSecret: string }) {
+    cloudinary.config({
+      secure: true,
+      cloud_name: credentials.cloudName,
+      api_key: credentials.apiKey,
+      api_secret: credentials.apiSecret,
+    });
+  }
+
+  async save(file: UploadedFileInput): Promise<UploadResult> {
+    const result = await new Promise<{ secure_url: string }>((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        { folder: 'nanook/products', resource_type: 'image' },
+        (error, uploadResult) => {
+          if (error || !uploadResult) {
+            reject(error || new Error('Cloudinary no devolvió resultado'));
+            return;
+          }
+          resolve(uploadResult);
+        },
+      );
+      stream.end(file.buffer);
+    });
+
+    return { url: result.secure_url };
   }
 }
