@@ -10,6 +10,7 @@ import {
   fetchStreetSuggestions,
   type ArgentinaCityOption,
   type ArgentinaProvinceOption,
+  type ArgentinaStreetOption,
 } from '@/lib/argentina-addresses';
 
 interface ShippingQuote {
@@ -33,9 +34,10 @@ export default function CheckoutPage() {
   const [provinceMenuOpen, setProvinceMenuOpen] = useState(false);
   const [cityMenuOpen, setCityMenuOpen] = useState(false);
   const [streetMenuOpen, setStreetMenuOpen] = useState(false);
-  const [streetSuggestions, setStreetSuggestions] = useState<string[]>([]);
+  const [streetSuggestions, setStreetSuggestions] = useState<ArgentinaStreetOption[]>([]);
   const [loadingStreetSuggestions, setLoadingStreetSuggestions] = useState(false);
   const [selectedCityId, setSelectedCityId] = useState('');
+  const [selectedCityCensalId, setSelectedCityCensalId] = useState('');
 
   const [form, setForm] = useState({
     buyerName: '',
@@ -85,6 +87,7 @@ export default function CheckoutPage() {
     const selected = provinceCities.find((city) => city.city === form.shippingCity);
     setCityQuery(selected ? selected.city : '');
     setSelectedCityId(selected ? selected.id : '');
+    setSelectedCityCensalId(selected ? selected.censalId : '');
   }, [form.shippingCity, provinceCities]);
 
   useEffect(() => {
@@ -130,36 +133,37 @@ export default function CheckoutPage() {
   }, [cityQuery, provinceCities]);
 
   useEffect(() => {
-    const cityId = selectedCityId;
+    const censalId = selectedCityCensalId;
 
-    if (!cityId || streetQuery.trim().length < 2) {
+    if (!censalId || streetQuery.trim().length < 2) {
       setStreetSuggestions([]);
       setLoadingStreetSuggestions(false);
       return;
     }
 
     let active = true;
+    setLoadingStreetSuggestions(true);
 
-    async function loadStreetSuggestions() {
-      setLoadingStreetSuggestions(true);
+    // Espera a que se deje de tipear antes de consultar la API: evita
+    // disparar un request por cada letra mientras se escribe la calle.
+    const timer = setTimeout(async () => {
       try {
-        const suggestions = await fetchStreetSuggestions(cityId, streetQuery);
+        const suggestions = await fetchStreetSuggestions(censalId, streetQuery);
         if (active) {
-          setStreetSuggestions(suggestions.map((item) => item.name));
+          setStreetSuggestions(suggestions);
         }
       } catch {
         if (active) setStreetSuggestions([]);
       } finally {
         if (active) setLoadingStreetSuggestions(false);
       }
-    }
-
-    loadStreetSuggestions();
+    }, 400);
 
     return () => {
       active = false;
+      clearTimeout(timer);
     };
-  }, [selectedCityId, streetQuery]);
+  }, [selectedCityCensalId, streetQuery]);
 
   async function quoteForProvince(province: string) {
     if (!province) {
@@ -180,6 +184,7 @@ export default function CheckoutPage() {
     setProvinceMenuOpen(false);
     setCityQuery('');
     setSelectedCityId('');
+    setSelectedCityCensalId('');
     setStreetQuery('');
     setStreetSuggestions([]);
     quoteForProvince(option);
@@ -191,6 +196,7 @@ export default function CheckoutPage() {
     setCityQuery(option);
     setCityMenuOpen(false);
     setSelectedCityId(selected?.id ?? '');
+    setSelectedCityCensalId(selected?.censalId ?? '');
     setStreetQuery('');
     setStreetSuggestions([]);
   }
@@ -209,6 +215,7 @@ export default function CheckoutPage() {
         next.shippingCity = '';
         next.shippingZip = '';
         setSelectedCityId('');
+        setSelectedCityCensalId('');
       }
 
       if (field === 'shippingCity') {
@@ -280,6 +287,7 @@ export default function CheckoutPage() {
                 setProvinceMenuOpen(true);
               }}
               onFocus={() => setProvinceMenuOpen(true)}
+              onBlur={() => setProvinceMenuOpen(false)}
               placeholder={loadingProvinces ? 'Cargando provincias...' : 'Buscar provincia'}
               disabled={loadingProvinces}
               required
@@ -313,11 +321,13 @@ export default function CheckoutPage() {
                 setCityQuery(e.target.value);
                 setCityMenuOpen(true);
                 setSelectedCityId('');
+                setSelectedCityCensalId('');
                 setStreetQuery('');
                 setStreetSuggestions([]);
                 setForm((f) => ({ ...f, shippingCity: '', shippingStreet: '', shippingZip: '' }));
               }}
               onFocus={() => setCityMenuOpen(true)}
+              onBlur={() => setCityMenuOpen(false)}
               placeholder={!form.shippingState ? 'Elegí una provincia primero' : loadingCities ? 'Cargando ciudades...' : 'Buscar ciudad'}
               disabled={!form.shippingState || loadingCities}
               required
@@ -358,6 +368,7 @@ export default function CheckoutPage() {
                 }
               }}
               onFocus={() => setStreetMenuOpen(true)}
+              onBlur={() => setStreetMenuOpen(false)}
               placeholder={!selectedCityId ? 'Elegí una ciudad primero' : loadingStreetSuggestions ? 'Buscando calles...' : 'Buscar calle'}
               required
               disabled={!selectedCityId}
@@ -365,15 +376,15 @@ export default function CheckoutPage() {
             {streetMenuOpen && selectedCityId && streetSuggestions.length > 0 && (
               <ul className="search-options">
                 {streetSuggestions.map((street) => (
-                  <li key={street}>
+                  <li key={street.id}>
                     <button
                       type="button"
                       onMouseDown={(e) => {
                         e.preventDefault();
-                        handleStreetSelect(street);
+                        handleStreetSelect(street.name);
                       }}
                     >
-                      {street}
+                      {street.name}
                     </button>
                   </li>
                 ))}

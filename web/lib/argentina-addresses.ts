@@ -1,6 +1,9 @@
 export type ArgentinaCityOption = {
   id: string;
   city: string;
+  // Id de la localidad censal: es lo que pide /calles (distinto del id de
+  // localidad que usamos para mostrar/filtrar la ciudad).
+  censalId: string;
 };
 
 export type ArgentinaProvinceOption = {
@@ -27,6 +30,7 @@ type GeorefLocalidadesResponse = {
   localidades: Array<{
     id: string;
     nombre: string;
+    localidad_censal?: { id: string };
   }>;
   cantidad: number;
   total: number;
@@ -83,15 +87,16 @@ export async function fetchProvinceCities(provinceId: string): Promise<Argentina
   while (true) {
     const data = await georefRequest<GeorefLocalidadesResponse>('/localidades', {
       provincia: provinceId,
-      campos: 'id,nombre',
+      campos: 'id,nombre,localidad_censal.id',
       max: String(GEOREF_MAX_PAGE_SIZE),
       inicio: String(inicio),
     });
 
     cities.push(
-      ...data.localidades.map(({ id, nombre }) => ({
+      ...data.localidades.map(({ id, nombre, localidad_censal }) => ({
         id,
         city: nombre,
+        censalId: localidad_censal?.id ?? '',
       })),
     );
 
@@ -106,7 +111,7 @@ export async function fetchProvinceCities(provinceId: string): Promise<Argentina
 }
 
 export async function fetchStreetSuggestions(
-  cityId: string,
+  censalId: string,
   search: string,
 ): Promise<ArgentinaStreetOption[]> {
   const cleaned = search.trim();
@@ -115,8 +120,10 @@ export async function fetchStreetSuggestions(
     return [];
   }
 
+  // El endpoint /calles no acepta el id de localidad "común" (el que usan
+  // /localidades y el resto de esta API): pide localidad_censal.
   const data = await georefRequest<GeorefCallesResponse>('/calles', {
-    localidad: cityId,
+    localidad_censal: censalId,
     nombre: cleaned,
     max: '10',
   });
