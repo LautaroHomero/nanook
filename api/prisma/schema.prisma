@@ -13,6 +13,13 @@ enum ShippingMethod {
   DOMICILIO
 }
 
+enum ReturnRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  COMPLETED
+}
+
 enum OrderStatus {
   PENDING
   PAID
@@ -93,6 +100,7 @@ model Order {
   items           OrderItem[]
   payment         Payment?
   shipment        Shipment?
+  returnRequests  ReturnRequest[]
 
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
@@ -182,4 +190,22 @@ model StockAlert {
   notifiedAt DateTime?
 
   @@index([productId])
+}
+
+// Pedido de devolución de un cliente sobre una orden puntual. Las fotos son
+// opcionales (no todos los compradores las suben), pero el front insiste en
+// pedirlas porque agilizan mucho la revisión del admin.
+model ReturnRequest {
+  id         String              @id @default(uuid())
+  order      Order               @relation(fields: [orderId], references: [id])
+  orderId    String
+  buyerEmail String
+  reason     String
+  images     String[]            @default([])
+  status     ReturnRequestStatus @default(PENDING)
+  adminNote  String?
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+
+  @@index([orderId])
 }

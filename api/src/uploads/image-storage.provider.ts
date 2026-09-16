@@ -14,7 +14,7 @@ export interface UploadResult {
 }
 
 export interface ImageStorageProvider {
-  save(file: UploadedFileInput): Promise<UploadResult>;
+  save(file: UploadedFileInput, folder?: string): Promise<UploadResult>;
 }
 
 // Ruta física donde se guardan los archivos. En Docker, este directorio está
@@ -41,6 +41,8 @@ export class LocalDiskStorageProvider implements ImageStorageProvider {
   }
 }
 
+export const DEFAULT_CLOUDINARY_FOLDER = 'nanook/products';
+
 // Sube el archivo a Cloudinary en vez de al disco del contenedor: en Render
 // (sin disco persistente en el plan free) el disco local se borra en cada
 // deploy, así que las fotos de producto necesitan vivir en un storage externo.
@@ -54,10 +56,10 @@ export class CloudinaryStorageProvider implements ImageStorageProvider {
     });
   }
 
-  async save(file: UploadedFileInput): Promise<UploadResult> {
+  async save(file: UploadedFileInput, folder: string = DEFAULT_CLOUDINARY_FOLDER): Promise<UploadResult> {
     const result = await new Promise<{ secure_url: string }>((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream(
-        { folder: 'nanook/products', resource_type: 'image' },
+        { folder, resource_type: 'image' },
         (error, uploadResult) => {
           if (error || !uploadResult) {
             reject(error || new Error('Cloudinary no devolvió resultado'));

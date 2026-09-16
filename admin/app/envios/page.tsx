@@ -90,6 +90,7 @@ export default function EnviosPage() {
         <Link href="/solicitudes"><button className="secondary">Pedidos de producto</button></Link>
         <Link href="/avisos"><button className="secondary">Avisos de stock</button></Link>
         <Link href="/envios"><button>Envíos</button></Link>
+        <Link href="/devoluciones"><button className="secondary">Devoluciones</button></Link>
       </div>
 
       <p style={{ opacity: 0.75, marginBottom: 16 }}>

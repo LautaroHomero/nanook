@@ -190,6 +190,13 @@ export function PaymentReturnView({ mode }: { mode: ReturnMode }) {
       {orderId && <p>Orden: {orderId}</p>}
       {verification?.preferenceId && <p>Preferencia: {verification.preferenceId}</p>}
       <Link href={copy.fallbackHref}>{copy.fallbackLabel}</Link>
+      {status === 'approved' && orderId && (
+        <p style={{ marginTop: 16 }}>
+          <Link href={`/devoluciones?orderId=${encodeURIComponent(orderId)}`}>
+            ¿Algún problema con tu compra? Pedí una devolución
+          </Link>
+        </p>
+      )}
     </div>
   );
 }

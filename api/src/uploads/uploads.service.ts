@@ -28,8 +28,8 @@ export class UploadsService {
     }
   }
 
-  async saveMany(files: UploadedFileInput[]) {
-    const results = await Promise.all(files.map((f) => this.provider.save(f)));
+  async saveMany(files: UploadedFileInput[], folder?: string) {
+    const results = await Promise.all(files.map((f) => this.provider.save(f, folder)));
     return results.map((r) => r.url);
   }
 }

@@ -25,6 +25,9 @@ export default function RootLayout({
              <Link href="/pedir-producto" className="cart-link">
                 Pedir producto
             </Link>
+             <Link href="/devoluciones" className="cart-link">
+                Devoluciones
+            </Link>
             <PedalboardBadge />
           </header>
           <main className="container">{children}</main>

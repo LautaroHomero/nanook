@@ -228,3 +228,36 @@ export async function createProductRequest(payload: ProductRequestPayload) {
   }
   return res.json();
 }
+
+export async function uploadReturnPhotos(files: File[]): Promise<string[]> {
+  const formData = new FormData();
+  files.forEach((file) => formData.append('files', file));
+
+  const res = await fetch(`${API_URL}/api/uploads/return-photos`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!res.ok) throw new Error('No se pudieron subir las fotos');
+  const data = await res.json();
+  return data.urls as string[];
+}
+
+export interface ReturnRequestPayload {
+  orderId: string;
+  buyerEmail: string;
+  reason: string;
+  images?: string[];
+}
+
+export async function createReturnRequest(payload: ReturnRequestPayload) {
+  const res = await fetch(`${API_URL}/api/return-requests`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || 'No se pudo enviar la devolución');
+  }
+  return res.json();
+}

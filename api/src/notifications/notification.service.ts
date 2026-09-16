@@ -103,6 +103,30 @@ export class NotificationsService {
     });
   }
 
+  notifyAdminNewReturnRequest(params: {
+    to: string;
+    orderId: string;
+    buyerEmail: string;
+    reason: string;
+    imagesCount: number;
+  }) {
+    return this.provider.sendEmail({
+      to: params.to,
+      subject: `Pedido de devolución: orden ${params.orderId.slice(0, 8)}`,
+      body: [
+        `${params.buyerEmail} pidió la devolución de la orden ${params.orderId}.`,
+        '',
+        `Motivo: ${params.reason}`,
+        '',
+        params.imagesCount > 0
+          ? `Adjuntó ${params.imagesCount} foto(s) del producto.`
+          : 'No adjuntó fotos del producto.',
+        '',
+        'Revisalo en el panel de admin (Devoluciones).',
+      ].join('\n'),
+    });
+  }
+
   notifyAdminNewProductRequest(params: {
     to: string;
     name: string;

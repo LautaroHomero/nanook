@@ -364,3 +364,35 @@ export async function updateOrderShipment(orderId: string, status: string, note?
   if (!res.ok) throw new Error('No se pudo actualizar el envío');
   return res.json();
 }
+
+export interface ReturnRequest {
+  id: string;
+  orderId: string;
+  buyerEmail: string;
+  reason: string;
+  images: string[];
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'COMPLETED';
+  adminNote?: string | null;
+  createdAt: string;
+  order?: Order;
+}
+
+export async function getReturnRequests(): Promise<ReturnRequest[]> {
+  const res = await fetch(`${API_URL}/api/return-requests/admin/all`, {
+    headers: authHeaders(),
+    cache: 'no-store',
+  });
+  if (res.status === 401) throw new Error('UNAUTHORIZED');
+  if (!res.ok) throw new Error('No se pudieron cargar las devoluciones');
+  return res.json();
+}
+
+export async function updateReturnRequestStatus(id: string, status: string, adminNote?: string) {
+  const res = await fetch(`${API_URL}/api/return-requests/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ status, adminNote }),
+  });
+  if (!res.ok) throw new Error('No se pudo actualizar la devolución');
+  return res.json();
+}

@@ -64,6 +64,7 @@ export default function AvisosPage() {
         <Link href="/solicitudes"><button className="secondary">Pedidos de producto</button></Link>
         <Link href="/avisos"><button>Avisos de stock</button></Link>
         <Link href="/envios"><button className="secondary">Envíos</button></Link>
+        <Link href="/devoluciones"><button className="secondary">Devoluciones</button></Link>
         <button className="secondary" onClick={load}>Actualizar</button>
       </div>
 
