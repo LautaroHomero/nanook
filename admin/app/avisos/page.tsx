@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { StockAlert, clearToken, getStockAlerts, getToken } from '@/lib/api';
+import { StockAlert, getStockAlerts, getToken } from '@/lib/api';
+import AdminShell from '../components/admin-shell';
 
 function formatDate(value: string) {
   return new Date(value).toLocaleString('es-AR');
@@ -41,38 +41,16 @@ export default function AvisosPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (loading) return <p>Cargando...</p>;
-
   return (
-    <div>
-      <div className="top-bar">
-        <h1>Avisos de stock</h1>
-        <button
-          className="secondary"
-          onClick={() => {
-            clearToken();
-            router.push('/login');
-          }}
-        >
-          Salir
-        </button>
-      </div>
+    <AdminShell title="Avisos de stock" onRefresh={load} refreshing={loading}>
+      {error && <p className="form-error">{error}</p>}
 
-      <div className="row" style={{ marginBottom: 16, gap: 8 }}>
-        <Link href="/productos"><button className="secondary">Productos</button></Link>
-        <Link href="/pedidos"><button className="secondary">Compras</button></Link>
-        <Link href="/solicitudes"><button className="secondary">Pedidos de producto</button></Link>
-        <Link href="/avisos"><button>Avisos de stock</button></Link>
-        <Link href="/envios"><button className="secondary">Envíos</button></Link>
-        <Link href="/devoluciones"><button className="secondary">Devoluciones</button></Link>
-        <button className="secondary" onClick={load}>Actualizar</button>
-      </div>
-
-      {error && <p style={{ color: '#e07b7b' }}>{error}</p>}
-
-      {alerts.length === 0 ? (
+      {loading ? (
+        <p>Cargando...</p>
+      ) : alerts.length === 0 ? (
         <p>Todavía no hay avisos de stock pedidos.</p>
       ) : (
+        <div className="table-scroll">
         <table>
           <thead>
             <tr>
@@ -88,12 +66,17 @@ export default function AvisosPage() {
                 <td>{formatDate(alert.createdAt)}</td>
                 <td>{alert.product?.name ?? alert.productId}</td>
                 <td>{alert.buyerEmail}</td>
-                <td>{alert.notified ? 'Avisado' : 'Pendiente'}</td>
+                <td>
+                  <span className={`badge ${alert.notified ? 'badge-green' : 'badge-yellow'}`}>
+                    {alert.notified ? 'Avisado' : 'Pendiente'}
+                  </span>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
+        </div>
       )}
-    </div>
+    </AdminShell>
   );
 }

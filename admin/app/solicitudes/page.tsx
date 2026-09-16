@@ -2,22 +2,27 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import {
   Product,
   ProductRequest,
-  clearToken,
   dismissProductRequest,
   getAllProducts,
   getProductRequests,
   getToken,
   linkProductRequest,
 } from '@/lib/api';
+import AdminShell from '../components/admin-shell';
 
 const STATUS_LABEL: Record<ProductRequest['status'], string> = {
   PENDING: 'Pendiente',
   FULFILLED: 'Resuelto',
   DISMISSED: 'Descartado',
+};
+
+const STATUS_BADGE: Record<ProductRequest['status'], string> = {
+  PENDING: 'badge-yellow',
+  FULFILLED: 'badge-green',
+  DISMISSED: 'badge-gray',
 };
 
 function formatDate(value: string) {
@@ -86,38 +91,16 @@ export default function SolicitudesPage() {
     }
   }
 
-  if (loading) return <p>Cargando...</p>;
-
   return (
-    <div>
-      <div className="top-bar">
-        <h1>Pedidos de producto</h1>
-        <button
-          className="secondary"
-          onClick={() => {
-            clearToken();
-            router.push('/login');
-          }}
-        >
-          Salir
-        </button>
-      </div>
+    <AdminShell title="Pedidos de producto" onRefresh={load} refreshing={loading}>
+      {error && <p className="form-error">{error}</p>}
 
-      <div className="row" style={{ marginBottom: 16, gap: 8 }}>
-        <Link href="/productos"><button className="secondary">Productos</button></Link>
-        <Link href="/pedidos"><button className="secondary">Compras</button></Link>
-        <Link href="/solicitudes"><button>Pedidos de producto</button></Link>
-        <Link href="/avisos"><button className="secondary">Avisos de stock</button></Link>
-        <Link href="/envios"><button className="secondary">Envíos</button></Link>
-        <Link href="/devoluciones"><button className="secondary">Devoluciones</button></Link>
-        <button className="secondary" onClick={load}>Actualizar</button>
-      </div>
-
-      {error && <p style={{ color: '#e07b7b' }}>{error}</p>}
-
-      {requests.length === 0 ? (
+      {loading ? (
+        <p>Cargando...</p>
+      ) : requests.length === 0 ? (
         <p>Todavía no hay pedidos de producto.</p>
       ) : (
+        <div className="table-scroll">
         <table>
           <thead>
             <tr>
@@ -159,7 +142,7 @@ export default function SolicitudesPage() {
                   )}
                 </td>
                 <td>
-                  {STATUS_LABEL[req.status]}
+                  <span className={`badge ${STATUS_BADGE[req.status]}`}>{STATUS_LABEL[req.status]}</span>
                   {req.status === 'FULFILLED' && req.linkedProduct && (
                     <>
                       <br />
@@ -207,7 +190,8 @@ export default function SolicitudesPage() {
             ))}
           </tbody>
         </table>
+        </div>
       )}
-    </div>
+    </AdminShell>
   );
 }

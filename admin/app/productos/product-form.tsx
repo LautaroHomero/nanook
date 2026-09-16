@@ -197,151 +197,189 @@ export default function ProductForm({
 
   return (
     <form onSubmit={handleSubmit}>
-      <h2>{product ? 'Editar producto' : 'Nuevo producto'}</h2>
-      <input
-        placeholder="Nombre"
-        value={form.name}
-        onChange={(e) => update('name', e.target.value)}
-        required
-      />
-      <textarea
-        placeholder="Descripción"
-        value={form.description}
-        onChange={(e) => update('description', e.target.value)}
-        rows={3}
-      />
-      <div className="money-input">
-        <span className="prefix">$</span>
-        <input
-          placeholder="Precio"
-          type="number"
-          step="0.01"
-          value={form.price}
-          onChange={(e) => update('price', e.target.value)}
-          required
-        />
+      <div className="product-form-header">
+        <h2>{product ? 'Editar producto' : 'Nuevo producto'}</h2>
       </div>
-      {product ? (
-        <div className="stock-manager" style={{ margin: '12px 0', padding: 12, border: '1px solid #444', borderRadius: 6 }}>
-          <p style={{ margin: '0 0 8px' }}>
-            <strong>Stock actual:</strong> {stock} unidad{stock === 1 ? '' : 'es'}
-          </p>
-          <label>
-            Agregar stock (un número de serie por línea, uno por unidad)
-            <textarea
-              placeholder={'NS-0001\nNS-0002'}
-              value={newSerials}
-              onChange={(e) => setNewSerials(e.target.value)}
-              rows={3}
-            />
-          </label>
-          <div className="row" style={{ marginTop: 6 }}>
-            <button type="button" className="secondary" onClick={handleAddStock} disabled={addingStock}>
-              {addingStock ? 'Agregando...' : 'Agregar stock'}
-            </button>
-          </div>
-          {stockError && <p style={{ color: '#e07b7b' }}>{stockError}</p>}
 
-          {serials.length > 0 && (
-            <details style={{ marginTop: 8 }}>
-              <summary>Ver números de serie ({serials.length})</summary>
-              <ul style={{ maxHeight: 160, overflowY: 'auto' }}>
-                {serials.map((s) => (
-                  <li key={s.id}>
-                    {s.serialNumber} — {s.status === 'IN_STOCK' ? 'en stock' : 'enviado'}
-                  </li>
+      {error && <p className="form-error">{error}</p>}
+
+      <div className="product-form-grid">
+        <div className="form-main">
+          <section className="card">
+            <h3>Datos generales</h3>
+            <label>
+              Nombre
+              <input
+                placeholder="Nombre del producto"
+                value={form.name}
+                onChange={(e) => update('name', e.target.value)}
+                required
+              />
+            </label>
+            <label>
+              Descripción
+              <textarea
+                placeholder="Descripción"
+                value={form.description}
+                onChange={(e) => update('description', e.target.value)}
+                rows={4}
+              />
+            </label>
+            <label>
+              Precio
+              <div className="money-input">
+                <span className="prefix">$</span>
+                <input
+                  placeholder="0.00"
+                  type="number"
+                  step="0.01"
+                  value={form.price}
+                  onChange={(e) => update('price', e.target.value)}
+                  required
+                />
+              </div>
+            </label>
+          </section>
+
+          <section className="card">
+            <h3>Categorización</h3>
+            <label>
+              Categoría (opcional)
+              <select value={form.categoryId} onChange={(e) => update('categoryId', e.target.value)}>
+                <option value="">-- Seleccionar --</option>
+                {categories.map((c: any) => (
+                  <React.Fragment key={c.id}>
+                    <option value={c.id}>{c.name}</option>
+                    {c.children?.map((ch: any) => (
+                      <option key={ch.id} value={ch.id}>
+                        {'  '}— {ch.name}
+                      </option>
+                    ))}
+                  </React.Fragment>
                 ))}
-              </ul>
+              </select>
+            </label>
+
+            <label>
+              Marca (opcional)
+              <select value={form.brandId} onChange={(e) => update('brandId', e.target.value)}>
+                <option value="">-- Seleccionar --</option>
+                {brands.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="inline-row" style={{ marginBottom: 14 }}>
+              <input
+                placeholder="Nueva marca"
+                value={newBrand}
+                onChange={(e) => setNewBrand(e.target.value)}
+              />
+              <button type="button" className="secondary" onClick={handleAddBrand}>
+                Agregar
+              </button>
+            </div>
+
+            <details className="taxonomy">
+              <summary>Gestionar categorías y marcas</summary>
+              <p style={{ margin: '0 0 6px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Categorías</p>
+              <CategoryManager onChange={loadCategories} />
+              <p style={{ margin: '10px 0 6px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Marcas</p>
+              <BrandManager onChange={() => { if (form.categoryId) loadCategories(); }} />
             </details>
+          </section>
+        </div>
+
+        <div className="form-side">
+          <section className="card">
+            <h3>Fotos</h3>
+            <label>
+              Fotos del producto
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleFilesSelected}
+                disabled={uploading}
+              />
+            </label>
+            {uploading && <p style={{ opacity: 0.7, fontSize: '0.85rem' }}>Subiendo imágenes...</p>}
+
+            {form.images.length > 0 && (
+              <div className="image-preview-row">
+                {form.images.map((url, i) => (
+                  <div className="image-preview" key={url}>
+                    <span className="image-order-badge">{i + 1}</span>
+                    <img src={url} alt={`Imagen ${i + 1}`} />
+                    <div className="image-actions">
+                      <button type="button" onClick={() => moveImage(i, -1)} disabled={i === 0}>
+                        ←
+                      </button>
+                      <button type="button" onClick={() => removeImage(i)}>
+                        ×
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveImage(i, 1)}
+                        disabled={i === form.images.length - 1}
+                      >
+                        →
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {product ? (
+            <section className="card stock-manager">
+              <h3>Stock</h3>
+              <p className="stock-count">
+                <strong>{stock}</strong> unidad{stock === 1 ? '' : 'es'} en stock
+              </p>
+              <label>
+                Agregar stock (un número de serie por línea, uno por unidad)
+                <textarea
+                  placeholder={'NS-0001\nNS-0002'}
+                  value={newSerials}
+                  onChange={(e) => setNewSerials(e.target.value)}
+                  rows={3}
+                />
+              </label>
+              <button type="button" className="secondary" onClick={handleAddStock} disabled={addingStock}>
+                {addingStock ? 'Agregando...' : 'Agregar stock'}
+              </button>
+              {stockError && <p className="form-error" style={{ marginTop: 10 }}>{stockError}</p>}
+
+              {serials.length > 0 && (
+                <details className="taxonomy" style={{ marginTop: 14 }}>
+                  <summary>Ver números de serie ({serials.length})</summary>
+                  <ul className="stock-serials">
+                    {serials.map((s) => (
+                      <li key={s.id}>
+                        {s.serialNumber} — {s.status === 'IN_STOCK' ? 'en stock' : 'enviado'}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+            </section>
+          ) : (
+            <section className="card">
+              <h3>Stock</h3>
+              <p className="hint" style={{ margin: 0 }}>
+                El stock se carga después de crear el producto, agregando un número de serie por
+                cada unidad que ingresa.
+              </p>
+            </section>
           )}
         </div>
-      ) : (
-        <p style={{ opacity: 0.75 }}>
-          El stock se carga después de crear el producto, agregando un número de serie por cada unidad.
-        </p>
-      )}
-      <label>
-        Categoría (opcional)
-        <select value={form.categoryId} onChange={(e) => update('categoryId', e.target.value)}>
-          <option value="">-- Seleccionar --</option>
-          {categories.map((c: any) => (
-            <React.Fragment key={c.id}>
-              <option value={c.id}>{c.name}</option>
-              {c.children?.map((ch: any) => (
-                <option key={ch.id} value={ch.id}>
-                  {'\u00A0\u00A0'}— {ch.name}
-                </option>
-              ))}
-            </React.Fragment>
-          ))}
-        </select>
-      </label>
+      </div>
 
-      <label>
-        Marca (opcional)
-        <select value={form.brandId} onChange={(e) => update('brandId', e.target.value)}>
-          <option value="">-- Seleccionar --</option>
-          {brands.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.name}
-            </option>
-          ))}
-        </select>
-        <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
-          <input
-            placeholder="Nueva marca"
-            value={newBrand}
-            onChange={(e) => setNewBrand(e.target.value)}
-          />
-          <button type="button" className="secondary" onClick={handleAddBrand}>
-            Agregar
-          </button>
-        </div>
-      </label>
-
-      <CategoryManager onChange={loadCategories} />
-      <BrandManager onChange={() => { if (form.categoryId) loadCategories(); }} />
-
-      <label>
-        Fotos del producto
-        <input
-          type="file"
-          accept="image/*"
-          multiple
-          onChange={handleFilesSelected}
-          disabled={uploading}
-        />
-      </label>
-      {uploading && <p style={{ opacity: 0.7 }}>Subiendo imágenes...</p>}
-
-      {form.images.length > 0 && (
-        <div className="image-preview-row">
-          {form.images.map((url, i) => (
-            <div className="image-preview" key={url}>
-              <span className="image-order-badge">{i + 1}</span>
-              <img src={url} alt={`Imagen ${i + 1}`} />
-              <div className="image-actions">
-                <button type="button" onClick={() => moveImage(i, -1)} disabled={i === 0}>
-                  ←
-                </button>
-                <button type="button" onClick={() => removeImage(i)}>
-                  ×
-                </button>
-                <button
-                  type="button"
-                  onClick={() => moveImage(i, 1)}
-                  disabled={i === form.images.length - 1}
-                >
-                  →
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {error && <p style={{ color: '#e07b7b' }}>{error}</p>}
-      <div className="row">
+      <div className="form-actions-bar">
         <button type="submit" disabled={loading || uploading}>
           {loading ? 'Guardando...' : 'Guardar'}
         </button>

@@ -2,14 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import {
   ReturnRequest,
-  clearToken,
   getReturnRequests,
   getToken,
   updateReturnRequestStatus,
 } from '@/lib/api';
+import AdminShell from '../components/admin-shell';
 
 const STATUS_LABEL: Record<ReturnRequest['status'], string> = {
   PENDING: 'Pendiente',
@@ -84,38 +83,16 @@ export default function DevolucionesPage() {
     }
   }
 
-  if (loading) return <p>Cargando...</p>;
-
   return (
-    <div>
-      <div className="top-bar">
-        <h1>Devoluciones</h1>
-        <button
-          className="secondary"
-          onClick={() => {
-            clearToken();
-            router.push('/login');
-          }}
-        >
-          Salir
-        </button>
-      </div>
+    <AdminShell title="Devoluciones" onRefresh={load} refreshing={loading}>
+      {error && <p className="form-error">{error}</p>}
 
-      <div className="row" style={{ marginBottom: 16, gap: 8 }}>
-        <Link href="/productos"><button className="secondary">Productos</button></Link>
-        <Link href="/pedidos"><button className="secondary">Compras</button></Link>
-        <Link href="/solicitudes"><button className="secondary">Pedidos de producto</button></Link>
-        <Link href="/avisos"><button className="secondary">Avisos de stock</button></Link>
-        <Link href="/envios"><button className="secondary">Envíos</button></Link>
-        <Link href="/devoluciones"><button>Devoluciones</button></Link>
-        <button className="secondary" onClick={load}>Actualizar</button>
-      </div>
-
-      {error && <p style={{ color: '#e07b7b' }}>{error}</p>}
-
-      {requests.length === 0 ? (
+      {loading ? (
+        <p>Cargando...</p>
+      ) : requests.length === 0 ? (
         <p>Todavía no hay pedidos de devolución.</p>
       ) : (
+        <div className="table-scroll">
         <table>
           <thead>
             <tr>
@@ -140,7 +117,7 @@ export default function DevolucionesPage() {
                       value={req.status}
                       disabled={busyId === req.id}
                       onChange={(e) => handleStatusChange(req.id, e.target.value)}
-                      style={{ marginBottom: 0 }}
+                      style={{ marginBottom: 0, width: 'auto', minWidth: 150 }}
                     >
                       {Object.entries(STATUS_LABEL).map(([value, label]) => (
                         <option key={value} value={value}>
@@ -164,27 +141,28 @@ export default function DevolucionesPage() {
                 rows.push(
                   <tr key={`${req.id}-detail`}>
                     <td colSpan={6}>
-                      <div style={{ padding: '8px 0' }}>
-                        {req.order && (
-                          <p style={{ margin: '4px 0' }}>
-                            <strong>Orden:</strong> #{req.order.orderNumber}
-                          </p>
-                        )}
-                        <p style={{ margin: '4px 0' }}>
-                          <strong>Motivo:</strong> {req.reason}
-                        </p>
-                        {req.order && (
-                          <p style={{ margin: '4px 0' }}>
-                            <strong>Comprador:</strong> {req.order.buyerName} · {req.order.buyerPhone}
-                            <br />
-                            <strong>Envío:</strong> {req.order.shippingStreet} {req.order.shippingNumber},{' '}
-                            {req.order.shippingCity}, {req.order.shippingState} ({req.order.shippingZip})
-                          </p>
-                        )}
+                      <div className="detail-panel">
+                        <dl className="detail-grid">
+                          {req.order && <dt>Orden</dt>}
+                          {req.order && <dd>#{req.order.orderNumber}</dd>}
+                          <dt>Motivo</dt>
+                          <dd>{req.reason}</dd>
+                          {req.order && (
+                            <>
+                              <dt>Comprador</dt>
+                              <dd>{req.order.buyerName} · {req.order.buyerPhone}</dd>
+                              <dt>Envío</dt>
+                              <dd>
+                                {req.order.shippingStreet} {req.order.shippingNumber},{' '}
+                                {req.order.shippingCity}, {req.order.shippingState} ({req.order.shippingZip})
+                              </dd>
+                            </>
+                          )}
+                        </dl>
                         {req.images.length > 0 && (
-                          <div style={{ margin: '8px 0' }}>
-                            <strong>Fotos:</strong>
-                            <div className="row" style={{ gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
+                          <div style={{ margin: '0 0 16px' }}>
+                            <p style={{ margin: '0 0 8px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Fotos</p>
+                            <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
                               {req.images.map((url) => (
                                 <a key={url} href={url} target="_blank" rel="noreferrer">
                                   <img
@@ -224,7 +202,8 @@ export default function DevolucionesPage() {
             })}
           </tbody>
         </table>
+        </div>
       )}
-    </div>
+    </AdminShell>
   );
 }

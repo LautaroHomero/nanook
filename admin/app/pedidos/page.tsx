@@ -2,14 +2,21 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { Order, clearToken, getAllOrders, getToken, updateOrderShipment } from '@/lib/api';
+import { Order, getAllOrders, getToken, updateOrderShipment } from '@/lib/api';
+import AdminShell from '../components/admin-shell';
 
 const ORDER_STATUS_LABEL: Record<Order['status'], string> = {
   PENDING: 'Pendiente',
   PAID: 'Pagada',
   SHIPPED: 'Enviada',
   CANCELLED: 'Cancelada',
+};
+
+const ORDER_STATUS_BADGE: Record<Order['status'], string> = {
+  PENDING: 'badge-yellow',
+  PAID: 'badge-green',
+  SHIPPED: 'badge-green',
+  CANCELLED: 'badge-red',
 };
 
 const SHIPMENT_STATUS_LABEL: Record<string, string> = {
@@ -109,38 +116,16 @@ export default function PedidosPage() {
     }
   }
 
-  if (loading) return <p>Cargando...</p>;
-
   return (
-    <div>
-      <div className="top-bar">
-        <h1>Compras y pagos</h1>
-        <button
-          className="secondary"
-          onClick={() => {
-            clearToken();
-            router.push('/login');
-          }}
-        >
-          Salir
-        </button>
-      </div>
+    <AdminShell title="Compras y pagos" onRefresh={load} refreshing={loading}>
+      {error && <p className="form-error">{error}</p>}
 
-      <div className="row" style={{ marginBottom: 16, gap: 8 }}>
-        <Link href="/productos"><button className="secondary">Productos</button></Link>
-        <Link href="/pedidos"><button>Compras</button></Link>
-        <Link href="/solicitudes"><button className="secondary">Pedidos de producto</button></Link>
-        <Link href="/avisos"><button className="secondary">Avisos de stock</button></Link>
-        <Link href="/envios"><button className="secondary">Envíos</button></Link>
-        <Link href="/devoluciones"><button className="secondary">Devoluciones</button></Link>
-        <button className="secondary" onClick={load}>Actualizar</button>
-      </div>
-
-      {error && <p style={{ color: '#e07b7b' }}>{error}</p>}
-
-      {orders.length === 0 ? (
+      {loading ? (
+        <p>Cargando...</p>
+      ) : orders.length === 0 ? (
         <p>Todavía no hay compras registradas.</p>
       ) : (
+        <div className="table-scroll">
         <table>
           <thead>
             <tr>
@@ -165,7 +150,11 @@ export default function PedidosPage() {
                     <span style={{ opacity: 0.6, fontSize: '0.85rem' }}>{order.buyerEmail}</span>
                   </td>
                   <td>{formatMoney(order.total)}</td>
-                  <td>{ORDER_STATUS_LABEL[order.status]}</td>
+                  <td>
+                    <span className={`badge ${ORDER_STATUS_BADGE[order.status]}`}>
+                      {ORDER_STATUS_LABEL[order.status]}
+                    </span>
+                  </td>
                   <td>{order.payment?.status ?? 'sin pago'}</td>
                   <td>
                     <button
@@ -182,25 +171,27 @@ export default function PedidosPage() {
                 rows.push(
                   <tr key={`${order.id}-detail`}>
                     <td colSpan={7}>
-                      <div style={{ padding: '8px 0' }}>
-                        <p style={{ margin: '4px 0' }}>
-                          <strong>Orden:</strong> #{order.orderNumber}
-                        </p>
-                        <p style={{ margin: '4px 0' }}>
-                          <strong>Envío:</strong> {order.shippingStreet} {order.shippingNumber},{' '}
-                          {order.shippingCity}, {order.shippingState} ({order.shippingZip}) —{' '}
-                          {order.buyerPhone} ·{' '}
-                          {order.shippingMethod === 'SUCURSAL' ? 'retiro en sucursal' : 'entrega a domicilio'}
-                        </p>
-                        <p style={{ margin: '4px 0' }}>
-                          <strong>Pago:</strong> {order.payment?.provider ?? '-'} · estado{' '}
-                          {order.payment?.status ?? '-'} · id externo{' '}
-                          {order.payment?.externalId ?? '-'}
-                        </p>
+                      <div className="detail-panel">
+                        <dl className="detail-grid">
+                          <dt>Envío a</dt>
+                          <dd>
+                            {order.shippingStreet} {order.shippingNumber}, {order.shippingCity},{' '}
+                            {order.shippingState} ({order.shippingZip}) — {order.buyerPhone} ·{' '}
+                            {order.shippingMethod === 'SUCURSAL' ? 'retiro en sucursal' : 'entrega a domicilio'}
+                          </dd>
+                          <dt>Pago</dt>
+                          <dd>
+                            {order.payment?.provider ?? '-'} · estado {order.payment?.status ?? '-'} · id
+                            externo {order.payment?.externalId ?? '-'}
+                          </dd>
+                        </dl>
+
                         {order.shipment && (
-                          <div style={{ margin: '4px 0' }}>
-                            <p style={{ margin: '4px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <strong>Envío:</strong>
+                          <div className="subcard">
+                            <h4>Gestión de envío</h4>
+
+                            <div className="field-row">
+                              <label>Estado</label>
                               <select
                                 value={order.shipment.status}
                                 disabled={savingShipmentId === order.id}
@@ -212,10 +203,10 @@ export default function PedidosPage() {
                                   </option>
                                 ))}
                               </select>
-                            </p>
+                            </div>
 
-                            <p style={{ margin: '4px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <strong>N° de envío:</strong>
+                            <div className="field-row">
+                              <label>N° de envío</label>
                               <input
                                 placeholder="Número de envío"
                                 value={trackingDrafts[order.id] ?? order.shipment.trackingId ?? ''}
@@ -223,7 +214,6 @@ export default function PedidosPage() {
                                 onChange={(e) =>
                                   setTrackingDrafts((d) => ({ ...d, [order.id]: e.target.value }))
                                 }
-                                style={{ width: 220 }}
                               />
                               <button
                                 className="secondary"
@@ -232,42 +222,40 @@ export default function PedidosPage() {
                               >
                                 Guardar
                               </button>
-                            </p>
-
-                            <div style={{ margin: '8px 0' }}>
-                              <label>
-                                Números de serie despachados (uno por línea)
-                                <textarea
-                                  rows={2}
-                                  style={{ width: '100%', maxWidth: 400 }}
-                                  value={serialDrafts[order.id] ?? ''}
-                                  disabled={savingShipmentId === order.id}
-                                  onChange={(e) =>
-                                    setSerialDrafts((d) => ({ ...d, [order.id]: e.target.value }))
-                                  }
-                                />
-                              </label>
-                              <div className="row" style={{ marginTop: 4 }}>
-                                <button
-                                  className="secondary"
-                                  disabled={savingShipmentId === order.id}
-                                  onClick={() => handleSaveSerials(order.id, order.shipment!.status)}
-                                >
-                                  Cargar números de serie
-                                </button>
-                              </div>
-                              {order.shipment.serials && order.shipment.serials.length > 0 && (
-                                <p style={{ margin: '4px 0', opacity: 0.8 }}>
-                                  Ya despachados: {order.shipment.serials.map((s) => s.serialNumber).join(', ')}
-                                </p>
-                              )}
                             </div>
+
+                            <label>
+                              Números de serie despachados (uno por línea)
+                              <textarea
+                                rows={2}
+                                value={serialDrafts[order.id] ?? ''}
+                                disabled={savingShipmentId === order.id}
+                                onChange={(e) =>
+                                  setSerialDrafts((d) => ({ ...d, [order.id]: e.target.value }))
+                                }
+                              />
+                            </label>
+                            <div className="row">
+                              <button
+                                className="secondary"
+                                disabled={savingShipmentId === order.id}
+                                onClick={() => handleSaveSerials(order.id, order.shipment!.status)}
+                              >
+                                Cargar números de serie
+                              </button>
+                            </div>
+                            {order.shipment.serials && order.shipment.serials.length > 0 && (
+                              <p style={{ margin: '10px 0 0', opacity: 0.8, fontSize: '0.85rem' }}>
+                                Ya despachados: {order.shipment.serials.map((s) => s.serialNumber).join(', ')}
+                              </p>
+                            )}
                           </div>
                         )}
-                        <p style={{ margin: '4px 0 8px' }}>
-                          <strong>Items ({formatMoney(order.itemsTotal)} + envío{' '}
-                          {formatMoney(order.shippingCost)}):</strong>
+
+                        <p style={{ margin: '0 0 8px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                          Items ({formatMoney(order.itemsTotal)} + envío {formatMoney(order.shippingCost)})
                         </p>
+                        <div className="table-scroll">
                         <table>
                           <thead>
                             <tr>
@@ -286,6 +274,7 @@ export default function PedidosPage() {
                             ))}
                           </tbody>
                         </table>
+                        </div>
                       </div>
                     </td>
                   </tr>,
@@ -296,7 +285,8 @@ export default function PedidosPage() {
             })}
           </tbody>
         </table>
+        </div>
       )}
-    </div>
+    </AdminShell>
   );
 }
