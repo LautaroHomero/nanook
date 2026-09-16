@@ -174,10 +174,16 @@ export class OrdersService {
 
     const total = itemsTotal + shippingCost;
 
-    // 3. Crear orden con items y validar stock, pero NO descontarlo todavía.
-    // El stock se descuenta solo cuando el pago queda aprobado en Mercado Pago.
-    const order = await this.prisma.order.create({
-      data: {
+    // 3. No se crea ninguna Order todavía: mientras el pago no esté aprobado
+    // no queremos guardar nada de esta compra en la base. Todos los datos
+    // necesarios para crear la orden viajan en la preferencia de pago y se
+    // recuperan recién cuando Mercado Pago confirma el pago (ver
+    // PaymentsService.finalizeApprovedPayment).
+    const preference = await this.payments.createCheckout({
+      title: `Compra Nanook (${dto.items.length} ${dto.items.length === 1 ? 'producto' : 'productos'})`,
+      amount: total,
+      buyerEmail: dto.buyerEmail,
+      orderPayload: {
         buyerName: dto.buyerName,
         buyerEmail: dto.buyerEmail,
         buyerPhone: dto.buyerPhone,
@@ -187,22 +193,13 @@ export class OrdersService {
         shippingState: dto.shippingState,
         shippingZip: dto.shippingZip,
         shippingMethod: dto.shippingMethod,
-        shippingCost,
+        items: itemsData,
         itemsTotal,
+        shippingCost,
         total,
-        items: { create: itemsData },
       },
-      include: { items: true },
     });
 
-    // 4. Generar preferencia de pago
-    const preference = await this.payments.createPreferenceForOrder({
-      orderId: order.id,
-      title: `Orden ${order.id.slice(0, 8)}`,
-      amount: total,
-      buyerEmail: dto.buyerEmail,
-    });
-
-    return { order, payment: preference };
+    return { payment: preference };
   }
 }

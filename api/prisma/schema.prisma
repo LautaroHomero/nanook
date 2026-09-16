@@ -148,7 +148,10 @@ model Payment {
   orderId        String   @unique
   provider       String   @default("mercadopago")
   preferenceId   String?
-  externalId     String?
+  // Id del pago en Mercado Pago. Único (permite varios NULL) para poder usarlo
+  // como clave de idempotencia al finalizar un pago aprobado: webhook y
+  // resolve pueden llegar en paralelo o duplicados para el mismo pago.
+  externalId     String?  @unique
   status         String   @default("pending")
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
