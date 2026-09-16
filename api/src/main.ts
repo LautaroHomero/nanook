@@ -14,9 +14,24 @@ async function bootstrap() {
   // Orígenes permitidos para llamar a la API: la web pública y el admin.
   // Sin esto, cualquier sitio podría hacer requests con las credenciales
   // del usuario logueado (CORS abierto con credentials:true).
-  const allowedOrigins = [process.env.FRONTEND_URL, process.env.ADMIN_URL].filter(
-    (origin): origin is string => !!origin,
-  );
+  //
+  // Cada URL se agrega junto con su variante con/sin "www", porque el
+  // navegador manda el Origin exacto (ej: www.tiendananook.store) y
+  // alcanza con configurar una sola forma en las env vars.
+  const withWwwVariant = (url: string): string[] => {
+    try {
+      const parsed = new URL(url);
+      const altHost = parsed.hostname.startsWith('www.')
+        ? parsed.hostname.slice(4)
+        : `www.${parsed.hostname}`;
+      return [url, `${parsed.protocol}//${altHost}`];
+    } catch {
+      return [url];
+    }
+  };
+  const allowedOrigins = [process.env.FRONTEND_URL, process.env.ADMIN_URL]
+    .filter((origin): origin is string => !!origin)
+    .flatMap(withWwwVariant);
   app.enableCors({
     origin: allowedOrigins.length > 0 ? allowedOrigins : true,
     credentials: true,
