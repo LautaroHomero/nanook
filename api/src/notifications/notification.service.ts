@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
+  EmailAttachment,
   MockNotificationProvider,
   NotificationProvider,
   ResendNotificationProvider,
@@ -51,7 +52,7 @@ export class NotificationsService {
   notifyOrderPaid(params: {
     to: string;
     buyerName: string;
-    orderId: string;
+    orderNumber: number;
     items: { name: string; quantity: number; unitPrice: number }[];
     itemsTotal: number;
     shippingCost: number;
@@ -69,11 +70,11 @@ export class NotificationsService {
 
     return this.provider.sendEmail({
       to: params.to,
-      subject: `Confirmamos tu compra en Nanook (orden ${params.orderId.slice(0, 8)})`,
+      subject: `Confirmamos tu compra en Nanook (orden #${params.orderNumber})`,
       body: [
         `Hola ${params.buyerName},`,
         '',
-        'Tu pago se acreditó y ya estamos preparando tu pedido. Resumen:',
+        `Tu pago se acreditó y ya estamos preparando tu pedido (orden #${params.orderNumber}). Resumen:`,
         '',
         ...itemLines,
         '',
@@ -88,16 +89,16 @@ export class NotificationsService {
 
   notifyAdminNewOrderPaid(params: {
     to: string;
-    orderId: string;
+    orderNumber: number;
     buyerName: string;
     buyerEmail: string;
     total: number;
   }) {
     return this.provider.sendEmail({
       to: params.to,
-      subject: `Nueva venta: orden ${params.orderId.slice(0, 8)}`,
+      subject: `Nueva venta: orden #${params.orderNumber}`,
       body:
-        `${params.buyerName} (${params.buyerEmail}) pagó la orden ${params.orderId}.\n\n` +
+        `${params.buyerName} (${params.buyerEmail}) pagó la orden #${params.orderNumber}.\n\n` +
         `Total: $${params.total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}\n\n` +
         `Revisala en el panel de admin (Compras) para coordinar el envío.`,
     });
@@ -105,25 +106,30 @@ export class NotificationsService {
 
   notifyAdminNewReturnRequest(params: {
     to: string;
-    orderId: string;
+    orderNumber: number;
     buyerEmail: string;
     reason: string;
-    imagesCount: number;
+    attachments: EmailAttachment[];
   }) {
+    const hasImages = params.attachments.length > 0;
+
+    const body = [
+      `${params.buyerEmail} pidió la devolución de la orden #${params.orderNumber}.`,
+      '',
+      `Motivo: ${params.reason}`,
+      '',
+      hasImages
+        ? `Adjuntó ${params.attachments.length} foto(s) del producto (ver adjuntos de este mail).`
+        : 'No adjuntó fotos del producto.',
+      '',
+      'Revisalo en el panel de admin (Devoluciones).',
+    ].join('\n');
+
     return this.provider.sendEmail({
       to: params.to,
-      subject: `Pedido de devolución: orden ${params.orderId.slice(0, 8)}`,
-      body: [
-        `${params.buyerEmail} pidió la devolución de la orden ${params.orderId}.`,
-        '',
-        `Motivo: ${params.reason}`,
-        '',
-        params.imagesCount > 0
-          ? `Adjuntó ${params.imagesCount} foto(s) del producto.`
-          : 'No adjuntó fotos del producto.',
-        '',
-        'Revisalo en el panel de admin (Devoluciones).',
-      ].join('\n'),
+      subject: `Pedido de devolución: orden #${params.orderNumber}`,
+      body,
+      attachments: params.attachments,
     });
   }
 

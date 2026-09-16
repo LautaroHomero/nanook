@@ -132,7 +132,7 @@ export default function DevolucionesPage() {
               const rows = [
                 <tr key={req.id}>
                   <td>{formatDate(req.createdAt)}</td>
-                  <td>{req.orderId.slice(0, 8)}</td>
+                  <td>{req.order ? `#${req.order.orderNumber}` : req.orderId.slice(0, 8)}</td>
                   <td>{req.buyerEmail}</td>
                   <td>{req.images.length > 0 ? `${req.images.length} foto(s)` : 'Sin fotos'}</td>
                   <td>
@@ -165,6 +165,11 @@ export default function DevolucionesPage() {
                   <tr key={`${req.id}-detail`}>
                     <td colSpan={6}>
                       <div style={{ padding: '8px 0' }}>
+                        {req.order && (
+                          <p style={{ margin: '4px 0' }}>
+                            <strong>Orden:</strong> #{req.order.orderNumber}
+                          </p>
+                        )}
                         <p style={{ margin: '4px 0' }}>
                           <strong>Motivo:</strong> {req.reason}
                         </p>

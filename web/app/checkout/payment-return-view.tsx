@@ -83,6 +83,7 @@ export function PaymentReturnView({ mode }: { mode: ReturnMode }) {
   const [orderId, setOrderId] = useState<string | null>(
     params.get('orderId') ?? params.get('external_reference'),
   );
+  const [orderNumber, setOrderNumber] = useState<number | null>(null);
   const [paymentId, setPaymentId] = useState<string>(extractPaymentId(params));
   const [verification, setVerification] = useState<{
     verified: boolean;
@@ -131,6 +132,9 @@ export function PaymentReturnView({ mode }: { mode: ReturnMode }) {
 
         if (result.orderId && result.orderId !== nextOrderId) {
           setOrderId(result.orderId);
+        }
+        if (result.orderNumber) {
+          setOrderNumber(result.orderNumber);
         }
 
         const resolvedStatus = normalizeStatus(result.status);
@@ -187,12 +191,12 @@ export function PaymentReturnView({ mode }: { mode: ReturnMode }) {
       {status !== 'loading' && <p>{message}</p>}
       {verificationMessage && <p>{verificationMessage}</p>}
       {paymentId && <p>Pago: {paymentId}</p>}
-      {orderId && <p>Orden: {orderId}</p>}
+      {orderNumber && <p>Orden: #{orderNumber}</p>}
       {verification?.preferenceId && <p>Preferencia: {verification.preferenceId}</p>}
       <Link href={copy.fallbackHref}>{copy.fallbackLabel}</Link>
-      {status === 'approved' && orderId && (
+      {status === 'approved' && orderNumber && (
         <p style={{ marginTop: 16 }}>
-          <Link href={`/devoluciones?orderId=${encodeURIComponent(orderId)}`}>
+          <Link href={`/devoluciones?orderNumber=${orderNumber}`}>
             ¿Algún problema con tu compra? Pedí una devolución
           </Link>
         </p>

@@ -80,6 +80,10 @@ model Product {
 
 model Order {
   id              String      @id @default(uuid())
+  // Número simple para mostrarle al cliente y al admin (mail, panel,
+  // formulario de devolución) — el id sigue siendo el UUID interno, este es
+  // solo para que sea fácil de leer y dictar.
+  orderNumber     Int         @unique @default(autoincrement())
   status          OrderStatus @default(PENDING)
 
   buyerName       String

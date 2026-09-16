@@ -1,8 +1,11 @@
-import { IsArray, IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
+import { Type } from 'class-transformer';
+import { ArrayMaxSize, IsArray, IsEmail, IsInt, IsOptional, IsString, IsUrl, Min, MinLength } from 'class-validator';
 
 export class CreateReturnRequestDto {
-  @IsString()
-  orderId: string;
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  orderNumber: number;
 
   @IsEmail()
   buyerEmail: string;
@@ -11,8 +14,16 @@ export class CreateReturnRequestDto {
   @MinLength(10)
   reason: string;
 
+  // Vienen de subir la foto vía /uploads/return-photos (que devuelve URLs de
+  // Cloudinary), pero como este endpoint es público, no confiamos en el
+  // string a ciegas: validamos que sea una URL http(s) real antes de
+  // guardarla o de insertarla en el mail al admin.
   @IsOptional()
   @IsArray()
-  @IsString({ each: true })
+  @ArrayMaxSize(5)
+  @IsUrl(
+    { protocols: ['http', 'https'], require_protocol: true, require_tld: false },
+    { each: true },
+  )
   images?: string[];
 }

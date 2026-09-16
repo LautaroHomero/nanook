@@ -275,6 +275,7 @@ export class PaymentsService {
       finalizeError,
       paymentId: remotePayment?.paymentId ?? (paymentId ? Number(paymentId) : null),
       orderId: resolvedOrderId,
+      orderNumber: localOrder?.orderNumber ?? null,
       preferenceId: preferenceId ?? localPayment?.preferenceId ?? null,
       status: remoteStatus,
       amountMatches,
@@ -418,7 +419,7 @@ export class PaymentsService {
         .notifyOrderPaid({
           to: order.buyerEmail,
           buyerName: order.buyerName,
-          orderId: order.id,
+          orderNumber: order.orderNumber,
           items: itemsForEmail,
           itemsTotal: Number(order.itemsTotal),
           shippingCost: Number(order.shippingCost),
@@ -432,7 +433,7 @@ export class PaymentsService {
         this.notifications
           .notifyAdminNewOrderPaid({
             to: adminEmail,
-            orderId: order.id,
+            orderNumber: order.orderNumber,
             buyerName: order.buyerName,
             buyerEmail: order.buyerEmail,
             total: Number(order.total),

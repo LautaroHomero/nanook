@@ -108,10 +108,11 @@ export default function PedidosPage() {
         <table>
           <thead>
             <tr>
+              <th>N°</th>
               <th>Fecha</th>
               <th>Comprador</th>
               <th>Total</th>
-              <th>Orden</th>
+              <th>Estado</th>
               <th>Pago</th>
               <th></th>
             </tr>
@@ -120,6 +121,7 @@ export default function PedidosPage() {
             {orders.flatMap((order) => {
               const rows = [
                 <tr key={order.id}>
+                  <td>#{order.orderNumber}</td>
                   <td>{formatDate(order.createdAt)}</td>
                   <td>
                     {order.buyerName}
@@ -143,8 +145,11 @@ export default function PedidosPage() {
               if (expandedId === order.id) {
                 rows.push(
                   <tr key={`${order.id}-detail`}>
-                    <td colSpan={6}>
+                    <td colSpan={7}>
                       <div style={{ padding: '8px 0' }}>
+                        <p style={{ margin: '4px 0' }}>
+                          <strong>Orden:</strong> #{order.orderNumber}
+                        </p>
                         <p style={{ margin: '4px 0' }}>
                           <strong>Envío:</strong> {order.shippingStreet} {order.shippingNumber},{' '}
                           {order.shippingCity}, {order.shippingState} ({order.shippingZip}) —{' '}

@@ -15,7 +15,7 @@ export default function DevolucionesPage() {
 function DevolucionesForm() {
   const params = useSearchParams();
   const [form, setForm] = useState({
-    orderId: params.get('orderId') ?? '',
+    orderNumber: params.get('orderNumber') ?? '',
     buyerEmail: '',
     reason: '',
   });
@@ -39,6 +39,11 @@ function DevolucionesForm() {
     setLoading(true);
     setError(null);
     try {
+      const orderNumber = Number(form.orderNumber.trim());
+      if (!Number.isInteger(orderNumber) || orderNumber < 1) {
+        throw new Error('El número de orden tiene que ser el que te mandamos por mail (ej: 1024)');
+      }
+
       let images: string[] = [];
       if (photos.length > 0) {
         setUploading(true);
@@ -47,7 +52,7 @@ function DevolucionesForm() {
       }
 
       await createReturnRequest({
-        orderId: form.orderId.trim(),
+        orderNumber,
         buyerEmail: form.buyerEmail.trim(),
         reason: form.reason,
         images,
@@ -82,9 +87,10 @@ function DevolucionesForm() {
       </p>
       <form onSubmit={handleSubmit}>
         <input
-          placeholder="Número de orden"
-          value={form.orderId}
-          onChange={(e) => update('orderId', e.target.value)}
+          placeholder="Número de orden (ej: 1024)"
+          inputMode="numeric"
+          value={form.orderNumber}
+          onChange={(e) => update('orderNumber', e.target.value)}
           required
         />
         <input

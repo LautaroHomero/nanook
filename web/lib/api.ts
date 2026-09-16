@@ -124,6 +124,7 @@ export interface PaymentReturnResolution {
   finalizeError?: string | null;
   paymentId: number | null;
   orderId: string | null;
+  orderNumber: number | null;
   preferenceId: string | null;
   status: string;
   amountMatches: boolean | null;
@@ -243,7 +244,7 @@ export async function uploadReturnPhotos(files: File[]): Promise<string[]> {
 }
 
 export interface ReturnRequestPayload {
-  orderId: string;
+  orderNumber: number;
   buyerEmail: string;
   reason: string;
   images?: string[];

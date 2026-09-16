@@ -1,7 +1,16 @@
+export interface EmailAttachment {
+  filename: string;
+  // Contenido en base64. Lo armamos nosotros (bajando el archivo de donde
+  // esté guardado) para que llegue como adjunto real del mail, no como un
+  // link que depende de que esa URL sea pública y siga viva.
+  content: string;
+}
+
 export interface SendEmailInput {
   to: string;
   subject: string;
   body: string;
+  attachments?: EmailAttachment[];
 }
 
 export interface NotificationProvider {
@@ -20,6 +29,9 @@ export class MockNotificationProvider implements NotificationProvider {
     console.log(`Para: ${input.to}`);
     console.log(`Asunto: ${input.subject}`);
     console.log(input.body);
+    if (input.attachments?.length) {
+      console.log(`Adjuntos: ${input.attachments.map((a) => a.filename).join(', ')}`);
+    }
     console.log('-------------------------------');
   }
 }
@@ -43,6 +55,14 @@ export class ResendNotificationProvider implements NotificationProvider {
         to: input.to,
         subject: input.subject,
         text: input.body,
+        ...(input.attachments?.length
+          ? {
+              attachments: input.attachments.map((a) => ({
+                filename: a.filename,
+                content: a.content,
+              })),
+            }
+          : {}),
       }),
     });
 

@@ -80,6 +80,7 @@ export interface Shipment {
 
 export interface Order {
   id: string;
+  orderNumber: number;
   status: 'PENDING' | 'PAID' | 'SHIPPED' | 'CANCELLED';
   buyerName: string;
   buyerEmail: string;
