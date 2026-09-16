@@ -24,7 +24,7 @@ services:
       - key: API_PUBLIC_URL
         value: https://nanook-api.onrender.com
       - key: MP_MOCK
-        value: false
+        value: true # dev: siempre en modo mock/test, nunca credenciales reales de MP
       - key: MP_ACCESS_TOKEN
         sync: false
       - key: MP_SUCCESS_URL
