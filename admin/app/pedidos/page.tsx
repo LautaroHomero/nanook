@@ -34,6 +34,8 @@ export default function PedidosPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [savingShipmentId, setSavingShipmentId] = useState<string | null>(null);
+  const [trackingDrafts, setTrackingDrafts] = useState<Record<string, string>>({});
+  const [serialDrafts, setSerialDrafts] = useState<Record<string, string>>({});
 
   async function load() {
     setLoading(true);
@@ -65,6 +67,40 @@ export default function PedidosPage() {
     setSavingShipmentId(orderId);
     try {
       await updateOrderShipment(orderId, status);
+      await load();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setSavingShipmentId(null);
+    }
+  }
+
+  async function handleSaveTracking(orderId: string, status: string) {
+    const trackingId = trackingDrafts[orderId] ?? '';
+    setSavingShipmentId(orderId);
+    setError(null);
+    try {
+      await updateOrderShipment(orderId, status, { trackingId });
+      await load();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setSavingShipmentId(null);
+    }
+  }
+
+  async function handleSaveSerials(orderId: string, status: string) {
+    const raw = serialDrafts[orderId] ?? '';
+    const serialNumbers = raw.split('\n').map((s) => s.trim()).filter(Boolean);
+    if (serialNumbers.length === 0) {
+      setError('Cargá al menos un número de serie');
+      return;
+    }
+    setSavingShipmentId(orderId);
+    setError(null);
+    try {
+      await updateOrderShipment(orderId, status, { serialNumbers });
+      setSerialDrafts((d) => ({ ...d, [orderId]: '' }));
       await load();
     } catch (err: any) {
       setError(err.message);
@@ -162,20 +198,71 @@ export default function PedidosPage() {
                           {order.payment?.externalId ?? '-'}
                         </p>
                         {order.shipment && (
-                          <p style={{ margin: '4px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <strong>Envío:</strong>
-                            <select
-                              value={order.shipment.status}
-                              disabled={savingShipmentId === order.id}
-                              onChange={(e) => handleShipmentStatusChange(order.id, e.target.value)}
-                            >
-                              {Object.entries(SHIPMENT_STATUS_LABEL).map(([value, label]) => (
-                                <option key={value} value={value}>
-                                  {label}
-                                </option>
-                              ))}
-                            </select>
-                          </p>
+                          <div style={{ margin: '4px 0' }}>
+                            <p style={{ margin: '4px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <strong>Envío:</strong>
+                              <select
+                                value={order.shipment.status}
+                                disabled={savingShipmentId === order.id}
+                                onChange={(e) => handleShipmentStatusChange(order.id, e.target.value)}
+                              >
+                                {Object.entries(SHIPMENT_STATUS_LABEL).map(([value, label]) => (
+                                  <option key={value} value={value}>
+                                    {label}
+                                  </option>
+                                ))}
+                              </select>
+                            </p>
+
+                            <p style={{ margin: '4px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <strong>N° de envío:</strong>
+                              <input
+                                placeholder="Número de envío"
+                                value={trackingDrafts[order.id] ?? order.shipment.trackingId ?? ''}
+                                disabled={savingShipmentId === order.id}
+                                onChange={(e) =>
+                                  setTrackingDrafts((d) => ({ ...d, [order.id]: e.target.value }))
+                                }
+                                style={{ width: 220 }}
+                              />
+                              <button
+                                className="secondary"
+                                disabled={savingShipmentId === order.id}
+                                onClick={() => handleSaveTracking(order.id, order.shipment!.status)}
+                              >
+                                Guardar
+                              </button>
+                            </p>
+
+                            <div style={{ margin: '8px 0' }}>
+                              <label>
+                                Números de serie despachados (uno por línea)
+                                <textarea
+                                  rows={2}
+                                  style={{ width: '100%', maxWidth: 400 }}
+                                  value={serialDrafts[order.id] ?? ''}
+                                  disabled={savingShipmentId === order.id}
+                                  onChange={(e) =>
+                                    setSerialDrafts((d) => ({ ...d, [order.id]: e.target.value }))
+                                  }
+                                />
+                              </label>
+                              <div className="row" style={{ marginTop: 4 }}>
+                                <button
+                                  className="secondary"
+                                  disabled={savingShipmentId === order.id}
+                                  onClick={() => handleSaveSerials(order.id, order.shipment!.status)}
+                                >
+                                  Cargar números de serie
+                                </button>
+                              </div>
+                              {order.shipment.serials && order.shipment.serials.length > 0 && (
+                                <p style={{ margin: '4px 0', opacity: 0.8 }}>
+                                  Ya despachados: {order.shipment.serials.map((s) => s.serialNumber).join(', ')}
+                                </p>
+                              )}
+                            </div>
+                          </div>
                         )}
                         <p style={{ margin: '4px 0 8px' }}>
                           <strong>Items ({formatMoney(order.itemsTotal)} + envío{' '}

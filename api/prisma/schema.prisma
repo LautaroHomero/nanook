@@ -33,6 +33,11 @@ enum ProductRequestStatus {
   DISMISSED
 }
 
+enum ProductSerialStatus {
+  IN_STOCK
+  SHIPPED
+}
+
 model Category {
   id        String     @id @default(uuid())
   name      String
@@ -73,6 +78,7 @@ model Product {
   orderItems   OrderItem[]
   stockAlerts  StockAlert[]
   productRequests ProductRequest[]
+  serials      ProductSerial[]
 
   @@index([categoryId])
   @@index([brandId])
@@ -157,8 +163,27 @@ model Shipment {
   // pending -> preparing -> shipped -> delivered (a mano, desde el panel admin)
   status       String   @default("pending")
   note         String?
+  serials      ProductSerial[]
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+// Número de serie de una unidad física de un producto. Se carga uno por
+// unidad al ingresar stock nuevo, y queda vinculado al envío (Shipment) en el
+// que esa unidad puntual salió, para tener trazabilidad de qué se mandó.
+model ProductSerial {
+  id           String              @id @default(uuid())
+  product      Product             @relation(fields: [productId], references: [id])
+  productId    String
+  serialNumber String              @unique
+  status       ProductSerialStatus @default(IN_STOCK)
+  shipment     Shipment?           @relation(fields: [shipmentId], references: [id])
+  shipmentId   String?
+  createdAt    DateTime            @default(now())
+  shippedAt    DateTime?
+
+  @@index([productId])
+  @@index([shipmentId])
 }
 
 // Alguien pide un producto que hoy no está en el catálogo. Queda pendiente

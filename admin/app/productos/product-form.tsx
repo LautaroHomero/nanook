@@ -3,12 +3,15 @@
 import React, { useState } from 'react';
 import {
   Product,
+  ProductSerial,
   createProduct,
   updateProduct,
   getCategories,
   getBrands,
   addBrand,
   uploadImages,
+  addProductStock,
+  getProductSerials,
 } from '@/lib/api';
 import CategoryManager from './category-manager';
 import BrandManager from './brand-manager';
@@ -26,7 +29,6 @@ export default function ProductForm({
     name: product?.name ?? '',
     description: product?.description ?? '',
     price: product?.price ?? '',
-    stock: product?.stock ?? 0,
     categoryId: product?.categoryId ?? '',
     brandId: product?.brandId ?? '',
     images: product?.images ?? ([] as string[]),
@@ -37,6 +39,11 @@ export default function ProductForm({
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stock, setStock] = useState(product?.stock ?? 0);
+  const [serials, setSerials] = useState<ProductSerial[]>([]);
+  const [newSerials, setNewSerials] = useState('');
+  const [addingStock, setAddingStock] = useState(false);
+  const [stockError, setStockError] = useState<string | null>(null);
 
   function update(field: string, value: string | number) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -58,6 +65,45 @@ export default function ProductForm({
   React.useEffect(() => {
     loadCategories();
   }, []);
+
+  async function loadSerials() {
+    if (!product) return;
+    try {
+      const list = await getProductSerials(product.id);
+      setSerials(list);
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  React.useEffect(() => {
+    loadSerials();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product?.id]);
+
+  async function handleAddStock() {
+    if (!product) return;
+    const serialNumbers = newSerials
+      .split('\n')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (serialNumbers.length === 0) {
+      setStockError('Cargá al menos un número de serie (uno por línea)');
+      return;
+    }
+    setAddingStock(true);
+    setStockError(null);
+    try {
+      const updated = await addProductStock(product.id, serialNumbers);
+      setStock(updated.stock);
+      setNewSerials('');
+      await loadSerials();
+    } catch (err: any) {
+      setStockError(err.message || 'No se pudo cargar el stock');
+    } finally {
+      setAddingStock(false);
+    }
+  }
 
   React.useEffect(() => {
     let mounted = true;
@@ -130,7 +176,6 @@ export default function ProductForm({
       name: form.name,
       description: form.description,
       price: Number(form.price),
-      stock: Number(form.stock),
       categoryId: form.categoryId || undefined,
       brandId: form.brandId || undefined,
       images: form.images,
@@ -139,7 +184,8 @@ export default function ProductForm({
       if (product) {
         await updateProduct(product.id, payload);
       } else {
-        await createProduct(payload);
+        // El stock arranca en 0: se carga después agregando números de serie.
+        await createProduct({ ...payload, stock: 0 });
       }
       onSaved();
     } catch (err: any) {
@@ -175,13 +221,45 @@ export default function ProductForm({
           required
         />
       </div>
-      <input
-        placeholder="Stock"
-        type="number"
-        value={form.stock}
-        onChange={(e) => update('stock', e.target.value)}
-        required
-      />
+      {product ? (
+        <div className="stock-manager" style={{ margin: '12px 0', padding: 12, border: '1px solid #444', borderRadius: 6 }}>
+          <p style={{ margin: '0 0 8px' }}>
+            <strong>Stock actual:</strong> {stock} unidad{stock === 1 ? '' : 'es'}
+          </p>
+          <label>
+            Agregar stock (un número de serie por línea, uno por unidad)
+            <textarea
+              placeholder={'NS-0001\nNS-0002'}
+              value={newSerials}
+              onChange={(e) => setNewSerials(e.target.value)}
+              rows={3}
+            />
+          </label>
+          <div className="row" style={{ marginTop: 6 }}>
+            <button type="button" className="secondary" onClick={handleAddStock} disabled={addingStock}>
+              {addingStock ? 'Agregando...' : 'Agregar stock'}
+            </button>
+          </div>
+          {stockError && <p style={{ color: '#e07b7b' }}>{stockError}</p>}
+
+          {serials.length > 0 && (
+            <details style={{ marginTop: 8 }}>
+              <summary>Ver números de serie ({serials.length})</summary>
+              <ul style={{ maxHeight: 160, overflowY: 'auto' }}>
+                {serials.map((s) => (
+                  <li key={s.id}>
+                    {s.serialNumber} — {s.status === 'IN_STOCK' ? 'en stock' : 'enviado'}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </div>
+      ) : (
+        <p style={{ opacity: 0.75 }}>
+          El stock se carga después de crear el producto, agregando un número de serie por cada unidad.
+        </p>
+      )}
       <label>
         Categoría (opcional)
         <select value={form.categoryId} onChange={(e) => update('categoryId', e.target.value)}>

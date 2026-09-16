@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
+import { AddStockDto } from './dto/add-stock.dto';
 import { AdminAuthGuard } from '../admin-auth/admin-auth.guard';
 
 @Controller('products')
@@ -63,6 +64,19 @@ export class ProductsController {
   @Post()
   create(@Body() dto: CreateProductDto) {
     return this.service.create(dto);
+  }
+
+  // Admin: ingresa stock nuevo cargando un número de serie por unidad.
+  @UseGuards(AdminAuthGuard)
+  @Post('admin/:id/stock')
+  addStock(@Param('id') id: string, @Body() dto: AddStockDto) {
+    return this.service.addStock(id, dto.serialNumbers);
+  }
+
+  @UseGuards(AdminAuthGuard)
+  @Get('admin/:id/serials')
+  listSerials(@Param('id') id: string) {
+    return this.service.listSerials(id);
   }
 
   @UseGuards(AdminAuthGuard)

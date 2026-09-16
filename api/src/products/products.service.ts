@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { StockAlertsService } from '../stock-alerts/stock-alerts.service';
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
@@ -128,5 +128,49 @@ export class ProductsService {
   async hayStock(id: string) {
     const product = await this.findOne(id);
     return product.stock > 0;
+  }
+
+  // Ingreso de stock nuevo: un número de serie por cada unidad que entra,
+  // para poder rastrear después con qué envío salió cada una.
+  async addStock(id: string, serialNumbers: string[]) {
+    const product = await this.findOne(id);
+
+    const trimmed = serialNumbers.map((s) => s.trim()).filter(Boolean);
+    if (trimmed.length === 0) {
+      throw new BadRequestException('Cargá al menos un número de serie');
+    }
+
+    const existing = await this.prisma.productSerial.findMany({
+      where: { serialNumber: { in: trimmed } },
+      select: { serialNumber: true },
+    });
+    if (existing.length > 0) {
+      throw new BadRequestException(
+        `Ya existen números de serie cargados: ${existing.map((e) => e.serialNumber).join(', ')}`,
+      );
+    }
+
+    const [, updated] = await this.prisma.$transaction([
+      this.prisma.productSerial.createMany({
+        data: trimmed.map((serialNumber) => ({ productId: id, serialNumber })),
+      }),
+      this.prisma.product.update({
+        where: { id },
+        data: { stock: { increment: trimmed.length } },
+      }),
+    ]);
+
+    if (product.stock === 0 && updated.stock > 0) {
+      await this.stockAlerts.notifyStockRestocked(id);
+    }
+
+    return updated;
+  }
+
+  listSerials(productId: string) {
+    return this.prisma.productSerial.findMany({
+      where: { productId },
+      orderBy: { createdAt: 'desc' },
+    });
   }
 }
