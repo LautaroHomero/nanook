@@ -5,6 +5,7 @@ import {
   DEFAULT_SHIPPING_COST_DOMICILIO,
   DEFAULT_SHIPPING_COST_SUCURSAL,
   DEFAULT_SHIPPING_DAYS,
+  FREE_SHIPPING_THRESHOLD,
 } from './argentina-provinces';
 
 export type ShippingMethod = 'SUCURSAL' | 'DOMICILIO';
@@ -21,27 +22,34 @@ export class ShippingService {
 
   constructor(private prisma: PrismaService) {}
 
-  async quote(province: string): Promise<ShippingQuoteResult> {
+  async quote(province: string, itemsTotal = 0): Promise<ShippingQuoteResult> {
     const rate = await this.prisma.shippingRate.findUnique({ where: { province } });
+
+    const base = rate
+      ? {
+          estimatedDays: rate.estimatedDays,
+          sucursal: Number(rate.costSucursal),
+          domicilio: Number(rate.costDomicilio),
+        }
+      : {
+          estimatedDays: DEFAULT_SHIPPING_DAYS,
+          sucursal: DEFAULT_SHIPPING_COST_SUCURSAL,
+          domicilio: DEFAULT_SHIPPING_COST_DOMICILIO,
+        };
 
     if (!rate) {
       this.logger.warn(`Sin tarifa cargada para "${province}", uso el costo por defecto`);
-      return {
-        estimatedDays: DEFAULT_SHIPPING_DAYS,
-        sucursal: DEFAULT_SHIPPING_COST_SUCURSAL,
-        domicilio: DEFAULT_SHIPPING_COST_DOMICILIO,
-      };
     }
 
-    return {
-      estimatedDays: rate.estimatedDays,
-      sucursal: Number(rate.costSucursal),
-      domicilio: Number(rate.costDomicilio),
-    };
+    if (itemsTotal > FREE_SHIPPING_THRESHOLD) {
+      return { ...base, sucursal: 0, domicilio: 0 };
+    }
+
+    return base;
   }
 
-  async costForMethod(province: string, method: ShippingMethod) {
-    const quote = await this.quote(province);
+  async costForMethod(province: string, method: ShippingMethod, itemsTotal = 0) {
+    const quote = await this.quote(province, itemsTotal);
     return method === 'SUCURSAL' ? quote.sucursal : quote.domicilio;
   }
 

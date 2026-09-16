@@ -10,7 +10,7 @@ export class ShippingController {
 
   @Post('quote')
   quote(@Body() dto: QuoteShippingDto) {
-    return this.service.quote(dto.province);
+    return this.service.quote(dto.province, dto.itemsTotal);
   }
 
   @UseGuards(AdminAuthGuard)

@@ -171,7 +171,7 @@ export default function CheckoutPage() {
       return;
     }
     try {
-      const quote = await quoteShipping(province);
+      const quote = await quoteShipping(province, cartTotal(cart));
       setShippingQuote(quote);
     } catch {
       setShippingQuote(null);
@@ -420,7 +420,7 @@ export default function CheckoutPage() {
                 checked={form.shippingMethod === 'DOMICILIO'}
                 onChange={() => update('shippingMethod', 'DOMICILIO')}
               />
-              Envío a domicilio — ${shippingQuote.domicilio}
+              Envío a domicilio — {shippingQuote.domicilio > 0 ? `$${shippingQuote.domicilio}` : 'Gratis'}
             </label>
             <label>
               <input
@@ -429,7 +429,7 @@ export default function CheckoutPage() {
                 checked={form.shippingMethod === 'SUCURSAL'}
                 onChange={() => update('shippingMethod', 'SUCURSAL')}
               />
-              Retiro en sucursal — ${shippingQuote.sucursal}
+              Retiro en sucursal — {shippingQuote.sucursal > 0 ? `$${shippingQuote.sucursal}` : 'Gratis'}
             </label>
           </div>
         )}

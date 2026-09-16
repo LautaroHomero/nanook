@@ -34,3 +34,7 @@ export const ARGENTINA_PROVINCES = [
 export const DEFAULT_SHIPPING_COST_SUCURSAL = 5000;
 export const DEFAULT_SHIPPING_COST_DOMICILIO = 7000;
 export const DEFAULT_SHIPPING_DAYS = 7;
+
+// A partir de este monto en productos (sin contar el envío), el envío
+// sale gratis sea cual sea el método elegido.
+export const FREE_SHIPPING_THRESHOLD = 500000;

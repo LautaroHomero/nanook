@@ -69,8 +69,13 @@ export class OrdersService {
       };
     });
 
-    // 2. Cotizar envío (tarifa fija manual por provincia + método elegido)
-    const shippingCost = await this.shipping.costForMethod(dto.shippingState, dto.shippingMethod);
+    // 2. Cotizar envío (tarifa fija manual por provincia + método elegido;
+    // gratis si el subtotal de productos supera el umbral configurado)
+    const shippingCost = await this.shipping.costForMethod(
+      dto.shippingState,
+      dto.shippingMethod,
+      itemsTotal,
+    );
 
     const total = itemsTotal + shippingCost;
 
