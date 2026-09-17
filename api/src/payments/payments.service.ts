@@ -342,6 +342,7 @@ export class PaymentsService {
           buyerName: payload.buyerName,
           buyerEmail: payload.buyerEmail,
           buyerPhone: payload.buyerPhone,
+          buyerDni: payload.buyerDni,
           shippingStreet: payload.shippingStreet,
           shippingNumber: payload.shippingNumber,
           shippingCity: payload.shippingCity,

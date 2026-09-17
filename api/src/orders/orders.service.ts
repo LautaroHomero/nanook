@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { ShippingService } from '../shipping/shipping.service';
 import { PaymentsService } from '../payments/payments.service';
+import { normalizeDniCuit } from '../common/dni-cuit';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateShipmentDto } from './dto/update-shipment.dto';
 
@@ -187,6 +188,7 @@ export class OrdersService {
         buyerName: dto.buyerName,
         buyerEmail: dto.buyerEmail,
         buyerPhone: dto.buyerPhone,
+        buyerDni: normalizeDniCuit(dto.buyerDni),
         shippingStreet: dto.shippingStreet,
         shippingNumber: dto.shippingNumber,
         shippingCity: dto.shippingCity,

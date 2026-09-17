@@ -8,6 +8,7 @@ export interface PendingOrderPayload {
   buyerName: string;
   buyerEmail: string;
   buyerPhone: string;
+  buyerDni: string;
   shippingStreet: string;
   shippingNumber: string;
   shippingCity: string;

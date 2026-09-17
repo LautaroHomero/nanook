@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { cartTotal } from '@/lib/cart';
 import { useCart } from '@/lib/cart-context';
 import { createOrder, quoteShipping } from '@/lib/api';
+import { isValidDniOrCuit } from '@/lib/dni-cuit';
 import {
   fetchArgentinaProvinces,
   fetchProvinceCities,
@@ -43,6 +44,7 @@ export default function CheckoutPage() {
     buyerName: '',
     buyerEmail: '',
     buyerPhone: '',
+    buyerDni: '',
     shippingStreet: '',
     shippingNumber: '',
     shippingCity: '',
@@ -232,6 +234,10 @@ export default function CheckoutPage() {
       setError('Seleccioná una ciudad válida antes de continuar');
       return;
     }
+    if (!isValidDniOrCuit(form.buyerDni)) {
+      setError('El DNI o CUIT ingresado no es válido');
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -274,6 +280,12 @@ export default function CheckoutPage() {
           placeholder="Teléfono"
           value={form.buyerPhone}
           onChange={(e) => update('buyerPhone', e.target.value)}
+          required
+        />
+        <input
+          placeholder="DNI o CUIT"
+          value={form.buyerDni}
+          onChange={(e) => update('buyerDni', e.target.value)}
           required
         />
 

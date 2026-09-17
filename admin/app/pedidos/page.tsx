@@ -119,6 +119,8 @@ export default function PedidosPage() {
                     <td colSpan={7}>
                       <div className="detail-panel">
                         <dl className="detail-grid">
+                          <dt>DNI / CUIT</dt>
+                          <dd>{order.buyerDni || '—'}</dd>
                           <dt>Envío a</dt>
                           <dd>
                             {order.shippingStreet} {order.shippingNumber}, {order.shippingCity},{' '}
