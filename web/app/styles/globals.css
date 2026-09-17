@@ -152,6 +152,21 @@ main p a,
 
 .cart-link:hover { border-color: var(--text); color: var(--text); }
 
+/* Ícono circular del footer (redes sociales) */
+.social-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--text-faint);
+  border-radius: 9999px;
+  color: var(--text-dim);
+  transition: border-color 0.12s ease, color 0.12s ease;
+}
+
+.social-link:hover { border-color: var(--text); color: var(--text); }
+
 .site-footer {
   display: flex;
   justify-content: center;
