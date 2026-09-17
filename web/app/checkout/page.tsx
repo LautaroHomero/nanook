@@ -40,6 +40,8 @@ export default function CheckoutPage() {
   const [selectedCityId, setSelectedCityId] = useState('');
   const [selectedCityCensalId, setSelectedCityCensalId] = useState('');
 
+  const [showConfirm, setShowConfirm] = useState(false);
+
   const [form, setForm] = useState({
     buyerName: '',
     buyerEmail: '',
@@ -228,7 +230,7 @@ export default function CheckoutPage() {
     });
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedCityId) {
       setError('Seleccioná una ciudad válida antes de continuar');
@@ -238,6 +240,11 @@ export default function CheckoutPage() {
       setError('El DNI o CUIT ingresado no es válido');
       return;
     }
+    setError(null);
+    setShowConfirm(true);
+  }
+
+  async function handleConfirmPurchase() {
     setLoading(true);
     setError(null);
     try {
@@ -249,6 +256,7 @@ export default function CheckoutPage() {
     } catch (err: any) {
       setError(err.message || 'Error al crear la orden');
       setLoading(false);
+      setShowConfirm(false);
     }
   }
 
@@ -457,6 +465,65 @@ export default function CheckoutPage() {
           {loading ? 'Procesando...' : 'Pagar con Mercado Pago'}
         </button>
       </form>
+
+      {showConfirm && (
+        <div className="modal-overlay" onClick={() => !loading && setShowConfirm(false)}>
+          <div className="modal-panel" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+            <h2>Confirmá tus datos</h2>
+            <p className="modal-eyebrow">Revisá que todo esté correcto antes de ir a Mercado Pago</p>
+
+            <dl className="modal-summary">
+              <dt>Comprador</dt>
+              <dd>{form.buyerName}</dd>
+              <dt>Contacto</dt>
+              <dd>{form.buyerEmail} · {form.buyerPhone}</dd>
+              <dt>DNI / CUIT</dt>
+              <dd>{form.buyerDni}</dd>
+              <dt>Envío</dt>
+              <dd>
+                {form.shippingStreet} {form.shippingNumber}, {form.shippingCity}, {form.shippingState} (
+                {form.shippingZip})
+              </dd>
+              <dt>Método de envío</dt>
+              <dd>
+                {form.shippingMethod === 'DOMICILIO' ? 'Envío a domicilio' : 'Retiro en sucursal'}
+                {shippingCost !== null && (shippingCost > 0 ? ` — $${shippingCost}` : ' — Gratis')}
+              </dd>
+            </dl>
+
+            <div className="modal-items">
+              {cart.map((item) => (
+                <div className="modal-item-row" key={item.productId}>
+                  <span className="name">{item.name}</span>
+                  <span className="qty">
+                    {item.quantity} × ${item.price}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className="total-row">
+              <span>Total</span>
+              <span>${total}</span>
+            </div>
+
+            {error && (
+              <p style={{ color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: 10 }}>
+                {error}
+              </p>
+            )}
+
+            <div className="modal-actions">
+              <button type="button" onClick={() => setShowConfirm(false)} disabled={loading}>
+                Volver
+              </button>
+              <button type="button" className="btn-primary" onClick={handleConfirmPurchase} disabled={loading}>
+                {loading ? 'Procesando...' : 'Confirmar y pagar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
