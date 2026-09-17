@@ -95,6 +95,9 @@ model Order {
   buyerName       String
   buyerEmail      String
   buyerPhone      String
+  // DNI o CUIT del comprador (solo dígitos, sin puntos ni guiones). Órdenes
+  // creadas antes de este campo quedan con "" (ver migración).
+  buyerDni        String      @default("")
 
   shippingStreet  String
   shippingNumber  String

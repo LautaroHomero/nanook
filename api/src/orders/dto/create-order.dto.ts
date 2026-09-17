@@ -6,10 +6,24 @@ import {
   IsInt,
   IsString,
   Min,
+  Validate,
   ValidateNested,
+  ValidatorConstraint,
+  ValidatorConstraintInterface,
 } from 'class-validator';
+import { isValidDniOrCuit } from '../../common/dni-cuit';
 
 export const SHIPPING_METHODS = ['SUCURSAL', 'DOMICILIO'] as const;
+
+@ValidatorConstraint({ name: 'isDniOrCuit', async: false })
+class IsDniOrCuitConstraint implements ValidatorConstraintInterface {
+  validate(value: unknown) {
+    return typeof value === 'string' && isValidDniOrCuit(value);
+  }
+  defaultMessage() {
+    return 'DNI o CUIT inválido: verificá que esté bien escrito';
+  }
+}
 
 export class OrderItemInput {
   @IsString()
@@ -34,6 +48,10 @@ export class CreateOrderDto {
 
   @IsString()
   buyerPhone: string;
+
+  @IsString()
+  @Validate(IsDniOrCuitConstraint)
+  buyerDni: string;
 
   @IsString()
   shippingStreet: string;
