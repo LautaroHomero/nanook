@@ -41,7 +41,7 @@ function EnviosContent() {
     setOrdersLoading(true);
     try {
       const data = await getAllOrders();
-      setOrders(data.filter((o) => o.shipment));
+      setOrders(data);
     } catch (err: any) {
       if (err.message === 'UNAUTHORIZED') {
         router.push('/login');
@@ -103,6 +103,12 @@ function EnviosContent() {
   }
 
   const selectedOrder = orders.find((o) => o.id === selectedOrderId) ?? null;
+
+  // Compras elegibles para registrarles un envío: pagadas (incluye las que
+  // ya tienen un envío cargado, para poder seguir editándolo).
+  const payableOrders = orders.filter((o) => o.status === 'PAID' || o.status === 'SHIPPED');
+  // Compras con un envío ya registrado, para la tabla de abajo.
+  const shipmentOrders = orders.filter((o) => o.shipment);
 
   async function handleRegister() {
     if (!selectedOrderId) {
@@ -166,7 +172,7 @@ function EnviosContent() {
           Compra
           <select value={selectedOrderId} onChange={(e) => selectOrder(e.target.value)}>
             <option value="">-- Elegir compra --</option>
-            {orders.map((o) => (
+            {payableOrders.map((o) => (
               <option key={o.id} value={o.id}>
                 #{o.orderNumber} · {o.buyerName} · {SHIPMENT_STATUS_LABEL[o.shipment?.status ?? 'pending']}
               </option>
@@ -236,8 +242,8 @@ function EnviosContent() {
         <h3>Envíos registrados</h3>
         {ordersLoading ? (
           <p>Cargando...</p>
-        ) : orders.length === 0 ? (
-          <p>Todavía no hay compras pagadas.</p>
+        ) : shipmentOrders.length === 0 ? (
+          <p>Todavía no se registró ningún envío.</p>
         ) : (
           <div className="table-scroll">
             <table>
@@ -252,7 +258,7 @@ function EnviosContent() {
                 </tr>
               </thead>
               <tbody>
-                {orders.map((o) => (
+                {shipmentOrders.map((o) => (
                   <tr key={o.id}>
                     <td>#{o.orderNumber}</td>
                     <td>{o.buyerName}</td>
