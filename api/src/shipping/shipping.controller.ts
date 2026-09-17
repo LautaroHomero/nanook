@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { ShippingZone } from '@prisma/client';
 import { ShippingService } from './shipping.service';
 import { QuoteShippingDto } from './dto/quote.dto';
 import { SetShippingRateDto } from './dto/set-rate.dto';
@@ -10,7 +11,7 @@ export class ShippingController {
 
   @Post('quote')
   quote(@Body() dto: QuoteShippingDto) {
-    return this.service.quote(dto.province, dto.itemsTotal);
+    return this.service.quote(dto.province, dto.partido, dto.itemsTotal);
   }
 
   @UseGuards(AdminAuthGuard)
@@ -20,10 +21,13 @@ export class ShippingController {
   }
 
   @UseGuards(AdminAuthGuard)
-  @Post('rates/admin/:province')
-  setRate(@Param('province') province: string, @Body() dto: SetShippingRateDto) {
+  @Post('rates/admin/:zone')
+  setRate(@Param('zone') zone: string, @Body() dto: SetShippingRateDto) {
+    if (!Object.values(ShippingZone).includes(zone as ShippingZone)) {
+      throw new BadRequestException(`Zona de envío inválida: "${zone}"`);
+    }
     return this.service.setRate(
-      decodeURIComponent(province),
+      zone as ShippingZone,
       dto.costSucursal,
       dto.costDomicilio,
       dto.estimatedDays,

@@ -361,7 +361,8 @@ export async function deleteBrand(id: string) {
 }
 
 export interface ShippingRate {
-  province: string;
+  zone: string;
+  label: string;
   costSucursal: number;
   costDomicilio: number;
   estimatedDays: number;
@@ -379,12 +380,12 @@ export async function getShippingRates(): Promise<ShippingRate[]> {
 }
 
 export async function setShippingRate(
-  province: string,
+  zone: string,
   costSucursal: number,
   costDomicilio: number,
   estimatedDays?: number,
 ) {
-  const res = await fetch(`${API_URL}/api/shipping/rates/admin/${encodeURIComponent(province)}`, {
+  const res = await fetch(`${API_URL}/api/shipping/rates/admin/${encodeURIComponent(zone)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ costSucursal, costDomicilio, estimatedDays }),

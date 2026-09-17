@@ -170,6 +170,7 @@ export class OrdersService {
     const shippingCost = await this.shipping.costForMethod(
       dto.shippingState,
       dto.shippingMethod,
+      dto.shippingPartido,
       itemsTotal,
     );
 

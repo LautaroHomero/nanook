@@ -77,11 +77,11 @@ export async function getProduct(id: string): Promise<Product> {
   return res.json();
 }
 
-export async function quoteShipping(province: string, itemsTotal: number) {
+export async function quoteShipping(province: string, partido: string, itemsTotal: number) {
   const res = await fetch(`${API_URL}/api/shipping/quote`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ province, itemsTotal }),
+    body: JSON.stringify({ province, partido, itemsTotal }),
   });
   if (!res.ok) throw new Error('No se pudo cotizar el envío');
   return res.json();
@@ -97,6 +97,7 @@ export interface CheckoutPayload {
   shippingNumber: string;
   shippingCity: string;
   shippingState: string;
+  shippingPartido: string;
   shippingZip: string;
   shippingMethod: 'SUCURSAL' | 'DOMICILIO';
 }

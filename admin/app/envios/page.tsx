@@ -34,7 +34,7 @@ function EnviosContent() {
   const [rates, setRates] = useState<ShippingRate[]>([]);
   const [rateDrafts, setRateDrafts] = useState<Record<string, { sucursal: string; domicilio: string }>>({});
   const [ratesLoading, setRatesLoading] = useState(true);
-  const [savingProvince, setSavingProvince] = useState<string | null>(null);
+  const [savingZone, setSavingZone] = useState<string | null>(null);
   const [ratesError, setRatesError] = useState<string | null>(null);
 
   async function loadOrders() {
@@ -60,7 +60,7 @@ function EnviosContent() {
       setRates(data);
       setRateDrafts(
         Object.fromEntries(
-          data.map((r) => [r.province, { sucursal: String(r.costSucursal), domicilio: String(r.costDomicilio) }]),
+          data.map((r) => [r.zone, { sucursal: String(r.costSucursal), domicilio: String(r.costDomicilio) }]),
         ),
       );
     } catch (err: any) {
@@ -126,23 +126,23 @@ function EnviosContent() {
     }
   }
 
-  async function handleSaveRate(province: string) {
-    const draft = rateDrafts[province];
+  async function handleSaveRate(zone: string) {
+    const draft = rateDrafts[zone];
     const sucursal = Number(draft?.sucursal);
     const domicilio = Number(draft?.domicilio);
     if (!Number.isFinite(sucursal) || sucursal < 0 || !Number.isFinite(domicilio) || domicilio < 0) {
       setRatesError('Los costos tienen que ser números mayores o iguales a 0');
       return;
     }
-    setSavingProvince(province);
+    setSavingZone(zone);
     setRatesError(null);
     try {
-      await setShippingRate(province, sucursal, domicilio);
+      await setShippingRate(zone, sucursal, domicilio);
       await loadRates();
     } catch (err: any) {
       setRatesError(err.message);
     } finally {
-      setSavingProvince(null);
+      setSavingZone(null);
     }
   }
 
@@ -279,11 +279,12 @@ function EnviosContent() {
       </section>
 
       <section className="card">
-        <h3>Costos de envío por provincia</h3>
+        <h3>Costos de envío por zona</h3>
         <p className="hint">
           El envío se coordina a mano: acá se define cuánto se le cobra al cliente en el checkout
-          según su provincia, para retiro en sucursal o entrega a domicilio. Las provincias marcadas
-          como "sin cargar" están usando el costo por defecto.
+          según la zona de destino (armada a partir de la provincia y, en Buenos Aires, del
+          partido), para retiro en sucursal o entrega a domicilio. Las zonas marcadas como "sin
+          cargar" están usando el costo por defecto.
         </p>
 
         {ratesError && <p className="form-error">{ratesError}</p>}
@@ -295,7 +296,7 @@ function EnviosContent() {
             <table>
               <thead>
                 <tr>
-                  <th>Provincia</th>
+                  <th>Zona</th>
                   <th>Sucursal ($)</th>
                   <th>Domicilio ($)</th>
                   <th>Días estimados</th>
@@ -305,18 +306,18 @@ function EnviosContent() {
               </thead>
               <tbody>
                 {rates.map((rate) => (
-                  <tr key={rate.province}>
-                    <td>{rate.province}</td>
+                  <tr key={rate.zone}>
+                    <td>{rate.label}</td>
                     <td>
                       <input
                         type="number"
                         min={0}
                         step="0.01"
-                        value={rateDrafts[rate.province]?.sucursal ?? ''}
+                        value={rateDrafts[rate.zone]?.sucursal ?? ''}
                         onChange={(e) =>
                           setRateDrafts((d) => ({
                             ...d,
-                            [rate.province]: { ...d[rate.province], sucursal: e.target.value },
+                            [rate.zone]: { ...d[rate.zone], sucursal: e.target.value },
                           }))
                         }
                         style={{ width: 110, marginBottom: 0 }}
@@ -327,11 +328,11 @@ function EnviosContent() {
                         type="number"
                         min={0}
                         step="0.01"
-                        value={rateDrafts[rate.province]?.domicilio ?? ''}
+                        value={rateDrafts[rate.zone]?.domicilio ?? ''}
                         onChange={(e) =>
                           setRateDrafts((d) => ({
                             ...d,
-                            [rate.province]: { ...d[rate.province], domicilio: e.target.value },
+                            [rate.zone]: { ...d[rate.zone], domicilio: e.target.value },
                           }))
                         }
                         style={{ width: 110, marginBottom: 0 }}
@@ -346,10 +347,10 @@ function EnviosContent() {
                     <td>
                       <button
                         className="secondary"
-                        disabled={savingProvince === rate.province}
-                        onClick={() => handleSaveRate(rate.province)}
+                        disabled={savingZone === rate.zone}
+                        onClick={() => handleSaveRate(rate.zone)}
                       >
-                        {savingProvince === rate.province ? 'Guardando...' : 'Guardar'}
+                        {savingZone === rate.zone ? 'Guardando...' : 'Guardar'}
                       </button>
                     </td>
                   </tr>
