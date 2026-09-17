@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { ShippingService } from '../shipping/shipping.service';
 import { PaymentsService } from '../payments/payments.service';
+import { NotificationsService } from '../notifications/notification.service';
 import { normalizeDniCuit } from '../common/dni-cuit';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateShipmentDto } from './dto/update-shipment.dto';
@@ -12,6 +13,7 @@ export class OrdersService {
     private prisma: PrismaService,
     private shipping: ShippingService,
     private payments: PaymentsService,
+    private notifications: NotificationsService,
   ) {}
 
   async findOne(id: string) {
@@ -45,6 +47,8 @@ export class OrdersService {
     });
     if (!order) throw new NotFoundException('Orden no encontrada');
 
+    const existingShipment = await this.prisma.shipment.findUnique({ where: { orderId } });
+
     const { status, note, trackingId, serialNumbers } = dto;
 
     const shipment = await this.prisma.shipment.upsert({
@@ -65,6 +69,19 @@ export class OrdersService {
 
     if (serialNumbers && serialNumbers.length > 0) {
       await this.assignShippedSerials(order, shipment.id, serialNumbers);
+    }
+
+    // Avisa al comprador la primera vez que el envío pasa a "shipped" con un
+    // número de envío cargado (no en cada edición posterior, para no
+    // duplicar el mail si el admin corrige algo después).
+    const justShipped = status === 'shipped' && existingShipment?.status !== 'shipped';
+    if (justShipped && shipment.trackingId) {
+      await this.notifications.notifyOrderShipped({
+        to: order.buyerEmail,
+        buyerName: order.buyerName,
+        orderNumber: order.orderNumber,
+        trackingId: shipment.trackingId,
+      });
     }
 
     return this.prisma.shipment.findUnique({
