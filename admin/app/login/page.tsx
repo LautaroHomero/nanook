@@ -25,31 +25,32 @@ export default function LoginPage() {
   }
 
   return (
-    <div>
-      <h1>Admin — Tienda de Pedales</h1>
-      <form onSubmit={handleSubmit}>
-        <input
-          placeholder="Email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <input
-          placeholder="Contraseña"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-        {error && <p style={{ color: '#e07b7b' }}>{error}</p>}
-        <button type="submit" disabled={loading}>
-          {loading ? 'Entrando...' : 'Entrar'}
-        </button>
-      </form>
-      <p style={{ opacity: 0.6, fontSize: '0.85rem' }}>
-        Credenciales por defecto (dev): admin@tienda.com / admin123
-      </p>
+    <div className="auth-page">
+      <div className="auth-card">
+        <h1>Nanook Admin</h1>
+        <p className="subtitle">Ingresá para gestionar la tienda</p>
+        <form onSubmit={handleSubmit}>
+          <input
+            placeholder="Email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+          <input
+            placeholder="Contraseña"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+          {error && <p className="form-error">{error}</p>}
+          <button type="submit" disabled={loading} style={{ width: '100%' }}>
+            {loading ? 'Entrando...' : 'Entrar'}
+          </button>
+        </form>
+        <p className="auth-hint">Credenciales por defecto (dev): admin@tienda.com / admin123</p>
+      </div>
     </div>
   );
 }

@@ -39,35 +39,37 @@ export default function CategoryManager({ onChange }: { onChange?: () => void })
 
   return (
     <div style={{ marginBottom: 8 }}>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+      <div className="inline-row" style={{ marginBottom: 10 }}>
         <input placeholder="Nueva categoría" value={newCat} onChange={(e)=>setNewCat(e.target.value)} />
-        <select value={parentId} onChange={(e)=>setParentId(e.target.value)}>
+        <select value={parentId} onChange={(e)=>setParentId(e.target.value)} style={{ width: 'auto', marginBottom: 0 }}>
           <option value="">Sin padre (nivel superior)</option>
           {categories.map((c) => (
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </select>
-        <button type="button" onClick={handleAdd} disabled={loading || !newCat.trim()}>
+        <button type="button" className="secondary" onClick={handleAdd} disabled={loading || !newCat.trim()}>
           Agregar
         </button>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      <div className="tag-list">
         {categories.map((c) => (
-          <div key={c.id} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            <span style={{ padding: '6px 10px', background: '#111', border: '1px solid #2a2a2c', borderRadius: 6 }}>{c.name}</span>
-            <button type="button" className="secondary" onClick={() => handleDel(c.id)} disabled={loading}>
-              Eliminar
-            </button>
-            {c.children?.map((ch:any) => (
-              <div key={ch.id} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                <span style={{ padding: '6px 10px', background: '#111', border: '1px solid #2a2a2c', borderRadius: 6, marginLeft: 6 }}>↳ {ch.name}</span>
-                <button type="button" className="secondary" onClick={() => handleDel(ch.id)} disabled={loading}>
-                  Eliminar
+          <React.Fragment key={c.id}>
+            <div className="tag">
+              {c.name}
+              <button type="button" onClick={() => handleDel(c.id)} disabled={loading} title="Eliminar">
+                ×
+              </button>
+            </div>
+            {c.children?.map((ch: any) => (
+              <div className="tag child" key={ch.id}>
+                ↳ {ch.name}
+                <button type="button" onClick={() => handleDel(ch.id)} disabled={loading} title="Eliminar">
+                  ×
                 </button>
               </div>
             ))}
-          </div>
+          </React.Fragment>
         ))}
       </div>
     </div>

@@ -1,14 +1,33 @@
-import { createHmac, timingSafeEqual } from 'crypto';
+import { randomUUID, createHmac, timingSafeEqual } from 'crypto';
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notification.service';
 import {
-  CreatePreferenceInput,
   MercadoPagoProvider,
   MockMercadoPagoProvider,
   PaymentProvider,
   PaymentStatusResult,
+  PendingOrderPayload,
 } from './payment.provider';
+
+export interface CreateCheckoutInput {
+  title: string;
+  amount: number;
+  buyerEmail: string;
+  orderPayload: PendingOrderPayload;
+}
+
+// Forma mínima que necesitan resolveReturn/getPaymentStatus, común a la orden
+// recién creada (finalizeApprovedPayment) y a una ya existente encontrada por
+// idempotencia (findExistingByPaymentId) — sus `include` de Prisma no son
+// idénticos, pero ambos cubren estos campos.
+interface ExistingOrder {
+  id: string;
+  orderNumber: number;
+  status: string;
+  total: unknown;
+  payment: { preferenceId: string | null; status: string } | null;
+}
 
 @Injectable()
 export class PaymentsService {
@@ -31,16 +50,39 @@ export class PaymentsService {
     return this.mockMode;
   }
 
-  async createPreferenceForOrder(input: CreatePreferenceInput) {
-    const result = await this.provider.createPreference(input);
-    await this.prisma.payment.create({
-      data: {
-        orderId: input.orderId,
-        preferenceId: result.preferenceId,
-        status: 'pending',
-      },
+  // Solo para la pantalla de "pago simulado" (ver PaymentsController): toma
+  // el payload que quedó guardado en el mock provider al crear la preferencia
+  // y lo finaliza como si MP hubiera aprobado el pago.
+  async confirmMockPayment(externalReference: string) {
+    if (!this.mockMode || !(this.provider instanceof MockMercadoPagoProvider)) {
+      throw new Error('El pago simulado está deshabilitado en este entorno');
+    }
+    const pending = this.provider.consumePending(externalReference);
+    if (!pending) {
+      throw new Error(`No hay un checkout simulado pendiente para ${externalReference}`);
+    }
+    const fakePaymentId = Math.floor(Date.now() / 1000);
+    const finalized = await this.finalizeApprovedPayment(
+      pending.payload,
+      fakePaymentId,
+      pending.preferenceId,
+    );
+    return finalized.order;
+  }
+
+  // La orden todavía no existe en nuestra base: se arma la preferencia de MP
+  // con todos los datos necesarios para reconstruirla más tarde (ver
+  // PendingOrderPayload) y no se escribe nada hasta que el pago se apruebe.
+  async createCheckout(input: CreateCheckoutInput) {
+    const externalReference = randomUUID();
+    const result = await this.provider.createPreference({
+      externalReference,
+      title: input.title,
+      amount: input.amount,
+      buyerEmail: input.buyerEmail,
+      orderPayload: input.orderPayload,
     });
-    return result;
+    return { ...result, externalReference };
   }
 
   validateWebhookSignature(input: {
@@ -119,40 +161,25 @@ export class PaymentsService {
       return null;
     }
 
-    const where = payment.externalReference
-      ? {
-          OR: [
-            { externalId: String(payment.paymentId) },
-            { orderId: payment.externalReference },
-          ],
-        }
-      : {
-          externalId: String(payment.paymentId),
-        };
+    const existing = await this.findExistingByPaymentId(String(payment.paymentId));
 
-    const localPayment = await this.prisma.payment.findFirst({
-      where,
-      include: { order: true },
-    });
-
-    if (localPayment) {
-      await this.prisma.payment.update({
-        where: { orderId: localPayment.orderId },
-        data: {
-          externalId: String(payment.paymentId),
-          status: payment.status ?? localPayment.status,
-        },
-      });
-    }
-
-    if (payment.status === 'approved' && payment.externalReference) {
-      await this.markAsPaid(payment.externalReference);
+    if (payment.status === 'approved' && payment.orderPayload) {
+      const finalized = await this.finalizeApprovedPayment(
+        payment.orderPayload,
+        payment.paymentId,
+        undefined,
+      );
+      return {
+        paymentId: payment.paymentId,
+        status: 'approved',
+        orderId: finalized.order.id,
+      };
     }
 
     return {
       paymentId: payment.paymentId,
-      status: payment.status ?? localPayment?.status ?? 'pending',
-      orderId: payment.externalReference ?? localPayment?.orderId ?? null,
+      status: payment.status ?? existing?.status ?? 'pending',
+      orderId: existing?.orderId ?? null,
     };
   }
 
@@ -163,31 +190,12 @@ export class PaymentsService {
     mpStatus?: string | null;
   }) {
     const paymentId = params.paymentId?.trim() || null;
-    const orderId = params.orderId?.trim() || null;
+    // "orderId" acá es en realidad el externalReference que le pusimos a la
+    // preferencia (la orden todavía puede no existir). Ya no sirve para
+    // buscar nada local: si el pago no está aprobado no hay ninguna fila que
+    // consultar.
     const preferenceId = params.preferenceId?.trim() || null;
     const mpStatus = params.mpStatus?.trim() || null;
-
-    const localPayment = await this.prisma.payment.findFirst({
-      where: {
-        OR: [
-          ...(paymentId ? [{ externalId: paymentId }] : []),
-          ...(orderId ? [{ orderId }] : []),
-          ...(preferenceId ? [{ preferenceId }] : []),
-        ],
-      },
-      include: { order: true },
-    });
-
-    const resolveOrder = async (resolvedOrderId?: string | null) => {
-      if (!resolvedOrderId) {
-        return null;
-      }
-
-      return this.prisma.order.findUnique({
-        where: { id: resolvedOrderId },
-        include: { payment: true },
-      });
-    };
 
     let remotePayment: PaymentStatusResult | null = null;
     if (paymentId) {
@@ -195,253 +203,238 @@ export class PaymentsService {
         remotePayment = await this.provider.getPayment(paymentId);
       } catch {
         // MP no respondió (token de otro entorno, timeout, pago inexistente):
-        // seguimos con el estado que llegó en el retorno del navegador y
-        // dejamos que el webhook o un reintento lo confirmen.
+        // seguimos con el estado que llegó en el retorno del navegador.
         remotePayment = null;
       }
     }
 
-    const resolvedOrderId =
-      remotePayment?.externalReference ??
-      localPayment?.orderId ??
-      orderId ??
-      null;
-    const localOrder = await resolveOrder(resolvedOrderId);
+    const existing = await this.findExistingByPaymentId(paymentId, preferenceId);
+
+    const remoteStatus = remotePayment?.status ?? mpStatus ?? existing?.status ?? 'pending';
+
+    let finalizeError: string | null = null;
+    let order: ExistingOrder | null = existing?.order ?? null;
+
+    if (remotePayment?.status === 'approved' && remotePayment.orderPayload && !existing) {
+      try {
+        const finalized = await this.finalizeApprovedPayment(
+          remotePayment.orderPayload,
+          remotePayment.paymentId,
+          preferenceId ?? undefined,
+        );
+        order = finalized.order;
+      } catch (err) {
+        // Pago aprobado en MP pero no pudimos crear la orden (p. ej. sin
+        // stock al momento de confirmar): no se guarda nada a medias.
+        finalizeError = err instanceof Error ? err.message : 'No se pudo finalizar la orden';
+      }
+    }
+
     const remoteAmount = remotePayment?.transactionAmount ?? null;
-    const expectedAmount = localOrder ? Number(localOrder.total) : null;
+    const expectedAmount = order ? Number(order.total) : null;
     const amountMatches =
       remoteAmount === null || expectedAmount === null
         ? null
         : Math.abs(remoteAmount - expectedAmount) < 0.01;
 
-    const remoteStatus = remotePayment?.status ?? mpStatus ?? localPayment?.status ?? 'pending';
-    const normalizedStatus = remoteStatus.toLowerCase();
-    // Solo rechazamos ante un desajuste EXPLÍCITO de external_reference. Si MP
-    // no devolvió external_reference pero el Payment local ya quedó atado a la
-    // orden (por externalId / preferenceId / orderId), lo damos por válido.
-    const referenceMismatch =
-      !!remotePayment?.externalReference &&
-      !!resolvedOrderId &&
-      remotePayment.externalReference !== resolvedOrderId;
-    const verifiedByReference = !referenceMismatch;
-    const verifiedByAmount = amountMatches !== false;
-    const verified = verifiedByReference && verifiedByAmount;
-    const storedStatus =
-      localPayment?.status === 'approved' || localOrder?.status === 'PAID'
-        ? 'approved'
-        : remoteStatus;
-
-    if (localPayment) {
-      await this.prisma.payment.update({
-        where: { orderId: localPayment.orderId },
-        data: {
-          externalId: remotePayment?.paymentId ? String(remotePayment.paymentId) : localPayment.externalId,
-          preferenceId: preferenceId ?? localPayment.preferenceId,
-          status: storedStatus,
-        },
-      });
-    }
-
-    // Finaliza la orden sin romper la request si markAsPaid falla (p. ej.
-    // faltante de stock al momento de aprobar): guardamos el motivo y lo
-    // devolvemos para que el front lo muestre.
-    let finalizeError: string | null = null;
-    const finalize = async (id: string) => {
-      try {
-        await this.markAsPaid(id);
-      } catch (err) {
-        finalizeError =
-          err instanceof Error ? err.message : 'No se pudo finalizar la orden';
-      }
-    };
-
-    if (
-      remotePayment?.status === 'approved' &&
-      remotePayment.externalReference &&
-      verified
-    ) {
-      await finalize(remotePayment.externalReference);
-    } else if (
-      normalizedStatus === 'approved' &&
-      resolvedOrderId &&
-      verified &&
-      localOrder?.status !== 'PAID'
-    ) {
-      await finalize(resolvedOrderId);
-    }
-
     return {
-      verified,
+      verified: order ? amountMatches !== false : remoteStatus !== 'approved',
       finalizeError,
       paymentId: remotePayment?.paymentId ?? (paymentId ? Number(paymentId) : null),
-      orderId: resolvedOrderId,
-      orderNumber: localOrder?.orderNumber ?? null,
-      preferenceId: preferenceId ?? localPayment?.preferenceId ?? null,
-      status: remoteStatus,
+      orderId: order?.id ?? null,
+      orderNumber: order?.orderNumber ?? null,
+      preferenceId: preferenceId ?? order?.payment?.preferenceId ?? null,
+      status: order ? 'approved' : remoteStatus,
       amountMatches,
       expectedAmount,
       remoteAmount,
-      localOrderStatus: localOrder?.status ?? null,
-      localPaymentStatus: localPayment?.status ?? null,
+      localOrderStatus: order?.status ?? null,
+      localPaymentStatus: order?.payment?.status ?? null,
     };
   }
 
   async handleWebhook(payload: any) {
     const paymentId = payload?.data?.id ?? payload?.id ?? payload?.payment_id;
-    const legacyOrderId =
-      payload?.data?.external_reference ??
-      payload?.external_reference ??
-      payload?.data?.metadata?.orderId;
-    const preferenceId =
-      payload?.data?.preference_id ??
-      payload?.preference_id ??
-      payload?.data?.metadata?.preferenceId;
 
-    if (paymentId) {
-      let payment: PaymentStatusResult | null = null;
+    if (!paymentId) {
+      return { received: true, orderId: null };
+    }
+
+    let payment: PaymentStatusResult | null = null;
+    try {
+      payment = await this.provider.getPayment(String(paymentId));
+    } catch {
+      payment = null;
+    }
+
+    if (!payment) {
+      return { received: true, paymentId };
+    }
+
+    if (payment.status === 'approved' && payment.orderPayload) {
+      const preferenceId =
+        payload?.data?.preference_id ?? payload?.preference_id ?? undefined;
       try {
-        payment = await this.provider.getPayment(String(paymentId));
-      } catch {
-        payment = null;
-      }
-
-      if (!payment) {
-        return { received: true, paymentId };
-      }
-
-      if (payment.status === 'approved' && payment.externalReference) {
-        return this.resolveReturn({
-          paymentId: String(paymentId),
-          orderId: payment.externalReference,
+        const finalized = await this.finalizeApprovedPayment(
+          payment.orderPayload,
+          payment.paymentId,
           preferenceId,
-          mpStatus: payment.status,
-        });
+        );
+        return {
+          received: true,
+          paymentId: payment.paymentId,
+          status: 'approved',
+          orderId: finalized.order.id,
+        };
+      } catch (err) {
+        this.logger.warn(
+          `Pago ${payment.paymentId} aprobado pero no se pudo finalizar la orden: ${
+            err instanceof Error ? err.message : err
+          }`,
+        );
+        return { received: true, paymentId: payment.paymentId, status: payment.status };
       }
-
-      return {
-        received: true,
-        paymentId: payment.paymentId,
-        status: payment.status,
-        orderId: payment.externalReference ?? legacyOrderId ?? null,
-      };
     }
 
-    if (legacyOrderId && (payload?.type === 'payment' || payload?.action === 'payment.updated')) {
-      return this.markAsPaid(legacyOrderId);
-    }
-
-    return { received: true, orderId: legacyOrderId ?? null };
+    return {
+      received: true,
+      paymentId: payment.paymentId,
+      status: payment.status,
+    };
   }
 
-  // Simula la confirmación de pago (webhook real de MP en el futuro llamará
-  // a un endpoint parecido a este, validando la firma de MP)
-  async markAsPaid(orderId: string) {
-    let justPaid = false;
+  // Único punto de escritura de una orden nueva: solo se llama cuando MP ya
+  // confirmó el pago como aprobado. Idempotente por Payment.externalId, así
+  // que webhook + resolve (o reintentos) no duplican la orden.
+  private async finalizeApprovedPayment(
+    payload: PendingOrderPayload,
+    mpPaymentId: number,
+    preferenceId: string | undefined,
+  ) {
+    const externalId = String(mpPaymentId);
 
-    const result = await this.prisma.$transaction(async (tx) => {
-      const order = await tx.order.findUnique({
-        where: { id: orderId },
-        include: { items: true, payment: true },
-      });
+    const already = await this.prisma.payment.findUnique({
+      where: { externalId },
+      include: { order: { include: { items: { include: { product: true } }, payment: true } } },
+    });
+    if (already) {
+      return { order: already.order, justCreated: false };
+    }
 
-      if (!order) {
-        throw new Error(`Orden ${orderId} no encontrada`);
-      }
-
-      // Idempotencia: solo order.status === 'PAID' certifica que el stock ya
-      // se descontó. payment.status puede llegar en 'approved' desde
-      // resolveReturn/handleWebhook antes de correr esta transacción, así que
-      // no sirve como señal de "ya procesado" (si lo usáramos, esta rama se
-      // dispararía en la primera confirmación real y nunca decrementaría
-      // stock ni marcaría la orden como pagada).
-      if (order.status === 'PAID') {
-        return {
-          ...order,
-          status: 'PAID',
-          payment: { ...(order.payment ?? {}), status: 'approved' },
-        };
-      }
-
-      justPaid = true;
-
-      for (const item of order.items) {
+    const order = await this.prisma.$transaction(async (tx) => {
+      for (const item of payload.items) {
         const product = await tx.product.findUnique({ where: { id: item.productId } });
-
-        if (!product) {
-          throw new Error(`Producto ${item.productId} no encontrado`);
+        if (!product || !product.active) {
+          throw new Error(`Producto ${item.productId} no disponible`);
         }
-
         if (product.stock < item.quantity) {
           throw new Error(`Sin stock suficiente para ${product.name}`);
         }
-
         await tx.product.update({
           where: { id: item.productId },
           data: { stock: { decrement: item.quantity } },
         });
       }
 
-      await tx.payment.update({
-        where: { orderId },
-        data: { status: 'approved' },
+      const created = await tx.order.create({
+        data: {
+          status: 'PAID',
+          buyerName: payload.buyerName,
+          buyerEmail: payload.buyerEmail,
+          buyerPhone: payload.buyerPhone,
+          shippingStreet: payload.shippingStreet,
+          shippingNumber: payload.shippingNumber,
+          shippingCity: payload.shippingCity,
+          shippingState: payload.shippingState,
+          shippingZip: payload.shippingZip,
+          shippingMethod: payload.shippingMethod,
+          shippingCost: payload.shippingCost,
+          itemsTotal: payload.itemsTotal,
+          total: payload.total,
+          items: {
+            create: payload.items.map((item) => ({
+              productId: item.productId,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+            })),
+          },
+          payment: {
+            create: {
+              provider: 'mercadopago',
+              preferenceId,
+              externalId,
+              status: 'approved',
+            },
+          },
+          // El envío se coordina a mano (ver panel admin /envios y /pedidos):
+          // acá solo dejamos la orden marcada como "pendiente de preparar".
+          shipment: {
+            create: { provider: 'manual', status: 'pending' },
+          },
+        },
+        include: {
+          items: { include: { product: true } },
+          payment: true,
+          shipment: true,
+        },
       });
 
-      // El envío se coordina a mano (ver panel admin /envios y /pedidos):
-      // acá solo dejamos la orden marcada como "pendiente de preparar".
-      await tx.shipment.upsert({
-        where: { orderId },
-        create: { orderId, provider: 'manual', status: 'pending' },
-        update: {},
-      });
-
-      return tx.order.update({
-        where: { id: orderId },
-        data: { status: 'PAID' },
-        include: { items: { include: { product: true } }, payment: true, shipment: true },
-      });
+      return created;
     });
 
     // Mails fuera de la transacción, y a propósito "best effort": si Resend
     // falla o no está configurado, no queremos que el pago falle por eso.
-    // justPaid solo es true en la rama que devuelve items con el producto
-    // incluido (ver arriba), así que el cast es seguro.
-    if (justPaid) {
-      const order = result as typeof result & {
-        items: { quantity: number; unitPrice: unknown; product: { name: string } }[];
-      };
-      const itemsForEmail = order.items.map((item) => ({
-        name: item.product.name,
-        quantity: item.quantity,
-        unitPrice: Number(item.unitPrice),
-      }));
+    const itemsForEmail = order.items.map((item) => ({
+      name: item.product.name,
+      quantity: item.quantity,
+      unitPrice: Number(item.unitPrice),
+    }));
 
+    this.notifications
+      .notifyOrderPaid({
+        to: order.buyerEmail,
+        buyerName: order.buyerName,
+        orderNumber: order.orderNumber,
+        items: itemsForEmail,
+        itemsTotal: Number(order.itemsTotal),
+        shippingCost: Number(order.shippingCost),
+        shippingMethod: order.shippingMethod,
+        total: Number(order.total),
+      })
+      .catch((err) => this.logger.warn(`No se pudo mandar el mail de confirmación: ${err.message}`));
+
+    const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL;
+    if (adminEmail) {
       this.notifications
-        .notifyOrderPaid({
-          to: order.buyerEmail,
-          buyerName: order.buyerName,
+        .notifyAdminNewOrderPaid({
+          to: adminEmail,
           orderNumber: order.orderNumber,
-          items: itemsForEmail,
-          itemsTotal: Number(order.itemsTotal),
-          shippingCost: Number(order.shippingCost),
-          shippingMethod: order.shippingMethod,
+          buyerName: order.buyerName,
+          buyerEmail: order.buyerEmail,
           total: Number(order.total),
         })
-        .catch((err) => this.logger.warn(`No se pudo mandar el mail de confirmación: ${err.message}`));
-
-      const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL;
-      if (adminEmail) {
-        this.notifications
-          .notifyAdminNewOrderPaid({
-            to: adminEmail,
-            orderNumber: order.orderNumber,
-            buyerName: order.buyerName,
-            buyerEmail: order.buyerEmail,
-            total: Number(order.total),
-          })
-          .catch((err) => this.logger.warn(`No se pudo avisar al admin de la venta: ${err.message}`));
-      }
+        .catch((err) => this.logger.warn(`No se pudo avisar al admin de la venta: ${err.message}`));
     }
 
-    return result;
+    return { order, justCreated: true };
+  }
+
+  private async findExistingByPaymentId(paymentId?: string | null, preferenceId?: string | null) {
+    if (!paymentId && !preferenceId) {
+      return null;
+    }
+    const payment = await this.prisma.payment.findFirst({
+      where: {
+        OR: [
+          ...(paymentId ? [{ externalId: paymentId }] : []),
+          ...(preferenceId ? [{ preferenceId }] : []),
+        ],
+      },
+      include: { order: { include: { items: { include: { product: true } }, payment: true } } },
+    });
+    if (!payment) {
+      return null;
+    }
+    return { status: payment.status, orderId: payment.orderId, order: payment.order };
   }
 }

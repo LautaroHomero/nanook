@@ -24,12 +24,12 @@ export class PaymentsController {
   // credenciales reales configuradas (MP_MOCK=false), este endpoint queda
   // deshabilitado: la confirmación real de pago pasa únicamente por el
   // webhook firmado o por /payments/resolve (que valida contra la API de MP).
-  @Post('mock-confirm/:orderId')
-  mockConfirm(@Param('orderId') orderId: string) {
+  @Post('mock-confirm/:externalReference')
+  async mockConfirm(@Param('externalReference') externalReference: string) {
     if (!this.service.isMockMode()) {
       throw new ForbiddenException('El pago simulado está deshabilitado en este entorno');
     }
-    return this.service.markAsPaid(orderId);
+    return this.service.confirmMockPayment(externalReference);
   }
 
   @Post('webhook')

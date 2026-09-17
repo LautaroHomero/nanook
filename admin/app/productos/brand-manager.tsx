@@ -41,25 +41,25 @@ export default function BrandManager({ onChange }: { onChange?: () => void }) {
 
   return (
     <div style={{ marginBottom: 8 }}>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+      <div className="inline-row" style={{ marginBottom: 10 }}>
         <input placeholder="Nueva marca" value={newName} onChange={(e)=>setNewName(e.target.value)} />
-        <select value={selCategory} onChange={(e)=>setSelCategory(e.target.value)}>
+        <select value={selCategory} onChange={(e)=>setSelCategory(e.target.value)} style={{ width: 'auto', marginBottom: 0 }}>
           <option value="">Sin categoría</option>
           {categories.map((c:any)=> (
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </select>
-        <button type="button" onClick={handleAdd} disabled={loading || !newName.trim()}>
+        <button type="button" className="secondary" onClick={handleAdd} disabled={loading || !newName.trim()}>
           Agregar
         </button>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      <div className="tag-list">
         {brands.map((b) => (
-          <div key={b.id} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            <span style={{ padding: '6px 10px', background: '#111', border: '1px solid #2a2a2c', borderRadius: 6 }}>{b.name}</span>
-            <button type="button" className="secondary" onClick={() => handleDel(b.id)} disabled={loading}>
-              Eliminar
+          <div className="tag" key={b.id}>
+            {b.name}
+            <button type="button" onClick={() => handleDel(b.id)} disabled={loading} title="Eliminar">
+              ×
             </button>
           </div>
         ))}

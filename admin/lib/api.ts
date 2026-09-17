@@ -71,11 +71,22 @@ export interface Payment {
   status: string;
 }
 
+export interface ProductSerial {
+  id: string;
+  productId: string;
+  serialNumber: string;
+  status: 'IN_STOCK' | 'SHIPPED';
+  shipmentId?: string | null;
+  createdAt: string;
+  shippedAt?: string | null;
+}
+
 export interface Shipment {
   id: string;
   provider: string;
   trackingId?: string | null;
   status: string;
+  serials?: ProductSerial[];
 }
 
 export interface Order {
@@ -201,6 +212,31 @@ export async function activateProduct(id: string) {
     body: JSON.stringify({ active: true }),
   });
   if (!res.ok) throw new Error('No se pudo reactivar el producto');
+  return res.json();
+}
+
+// Ingresa stock nuevo cargando un número de serie por cada unidad.
+export async function addProductStock(productId: string, serialNumbers: string[]): Promise<Product> {
+  const res = await fetch(`${API_URL}/api/products/admin/${productId}/stock`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ serialNumbers }),
+  });
+  if (res.status === 401) throw new Error('UNAUTHORIZED');
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new Error(data?.message || 'No se pudo cargar el stock');
+  }
+  return res.json();
+}
+
+export async function getProductSerials(productId: string): Promise<ProductSerial[]> {
+  const res = await fetch(`${API_URL}/api/products/admin/${productId}/serials`, {
+    headers: authHeaders(),
+    cache: 'no-store',
+  });
+  if (res.status === 401) throw new Error('UNAUTHORIZED');
+  if (!res.ok) throw new Error('No se pudieron cargar los números de serie');
   return res.json();
 }
 
@@ -356,13 +392,20 @@ export async function setShippingRate(
   return res.json();
 }
 
-export async function updateOrderShipment(orderId: string, status: string, note?: string) {
+export async function updateOrderShipment(
+  orderId: string,
+  status: string,
+  options?: { note?: string; trackingId?: string; serialNumbers?: string[] },
+) {
   const res = await fetch(`${API_URL}/api/orders/${orderId}/shipment`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
-    body: JSON.stringify({ status, note }),
+    body: JSON.stringify({ status, ...options }),
   });
-  if (!res.ok) throw new Error('No se pudo actualizar el envío');
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new Error(data?.message || 'No se pudo actualizar el envío');
+  }
   return res.json();
 }
 

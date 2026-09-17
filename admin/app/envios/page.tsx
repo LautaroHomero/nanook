@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { ShippingRate, clearToken, getShippingRates, getToken, setShippingRate } from '@/lib/api';
+import { ShippingRate, getShippingRates, getToken, setShippingRate } from '@/lib/api';
+import AdminShell from '../components/admin-shell';
 
 export default function EnviosPage() {
   const router = useRouter();
@@ -67,40 +67,20 @@ export default function EnviosPage() {
     }
   }
 
-  if (loading) return <p>Cargando...</p>;
-
   return (
-    <div>
-      <div className="top-bar">
-        <h1>Costos de envío por provincia</h1>
-        <button
-          className="secondary"
-          onClick={() => {
-            clearToken();
-            router.push('/login');
-          }}
-        >
-          Salir
-        </button>
-      </div>
-
-      <div className="row" style={{ marginBottom: 16, gap: 8 }}>
-        <Link href="/productos"><button className="secondary">Productos</button></Link>
-        <Link href="/pedidos"><button className="secondary">Compras</button></Link>
-        <Link href="/solicitudes"><button className="secondary">Pedidos de producto</button></Link>
-        <Link href="/avisos"><button className="secondary">Avisos de stock</button></Link>
-        <Link href="/envios"><button>Envíos</button></Link>
-        <Link href="/devoluciones"><button className="secondary">Devoluciones</button></Link>
-      </div>
-
-      <p style={{ opacity: 0.75, marginBottom: 16 }}>
+    <AdminShell title="Costos de envío por provincia" onRefresh={load} refreshing={loading}>
+      <p className="card" style={{ opacity: 0.85, fontSize: '0.9rem' }}>
         El envío se coordina a mano: acá se define cuánto se le cobra al cliente en el checkout
         según su provincia, para retiro en sucursal o entrega a domicilio. Las provincias marcadas
         como "sin cargar" están usando el costo por defecto.
       </p>
 
-      {error && <p style={{ color: '#e07b7b' }}>{error}</p>}
+      {error && <p className="form-error">{error}</p>}
 
+      {loading ? (
+        <p>Cargando...</p>
+      ) : (
+      <div className="table-scroll">
       <table>
         <thead>
           <tr>
@@ -147,7 +127,11 @@ export default function EnviosPage() {
                 />
               </td>
               <td>{rate.estimatedDays}</td>
-              <td>{rate.configured ? 'Cargada' : 'Sin cargar (default)'}</td>
+              <td>
+                <span className={`badge ${rate.configured ? 'badge-green' : 'badge-gray'}`}>
+                  {rate.configured ? 'Cargada' : 'Sin cargar (default)'}
+                </span>
+              </td>
               <td>
                 <button
                   className="secondary"
@@ -161,6 +145,8 @@ export default function EnviosPage() {
           ))}
         </tbody>
       </table>
-    </div>
+      </div>
+      )}
+    </AdminShell>
   );
 }

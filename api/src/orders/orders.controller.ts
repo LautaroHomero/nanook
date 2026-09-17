@@ -25,10 +25,11 @@ export class OrdersController {
     return this.service.findOne(id);
   }
 
-  // Admin: actualiza el estado del envío manual (pendiente/preparando/enviado/entregado).
+  // Admin: actualiza el estado del envío manual (pendiente/preparando/enviado/entregado),
+  // el número de envío y los números de serie de lo que salió.
   @UseGuards(AdminAuthGuard)
   @Patch(':id/shipment')
   updateShipment(@Param('id') id: string, @Body() dto: UpdateShipmentDto) {
-    return this.service.updateShipment(id, dto.status, dto.note);
+    return this.service.updateShipment(id, dto);
   }
 }

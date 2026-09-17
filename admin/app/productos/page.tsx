@@ -2,11 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import {
   Product,
   activateProduct,
-  clearToken,
   deactivateProduct,
   getAllProducts,
   getToken,
@@ -14,6 +12,7 @@ import {
   getBrands,
 } from '@/lib/api';
 import ProductForm from './product-form';
+import AdminShell from '../components/admin-shell';
 
 export default function ProductsPage() {
   const router = useRouter();
@@ -85,32 +84,12 @@ export default function ProductsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (loading) return <p>Cargando...</p>;
-
   return (
-    <div>
-      <div className="top-bar">
-        <h1>Productos</h1>
-        <button
-          className="secondary"
-          onClick={() => {
-            clearToken();
-            router.push('/login');
-          }}
-        >
-          Salir
-        </button>
-      </div>
-
-      <div className="row" style={{ marginBottom: 16, gap: 8 }}>
-        <Link href="/productos"><button>Productos</button></Link>
-        <Link href="/pedidos"><button className="secondary">Compras</button></Link>
-        <Link href="/solicitudes"><button className="secondary">Pedidos de producto</button></Link>
-        <Link href="/avisos"><button className="secondary">Avisos de stock</button></Link>
-        <Link href="/envios"><button className="secondary">Envíos</button></Link>
-        <Link href="/devoluciones"><button className="secondary">Devoluciones</button></Link>
-      </div>
-
+    <AdminShell title="Productos">
+      {loading ? (
+        <p>Cargando...</p>
+      ) : (
+        <>
       {!showNew && !editing && (
         <div className="search-bar">
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -180,57 +159,67 @@ export default function ProductsPage() {
         />
       )}
 
-      <table>
-        <thead>
-          <tr>
-            <th>Nombre</th>
-            <th>Precio</th>
-            <th>Stock</th>
-            <th>Categoría</th>
-            <th>Marca</th>
-            <th>Estado</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {products.map((p: Product) => (
-            <tr key={p.id}>
-              <td>{p.name}</td>
-              <td>${p.price}</td>
-              <td>{p.stock}</td>
-              <td>{catsMap[p.categoryId ?? ''] ?? '-'}</td>
-              <td>{brandsMap[p.brandId ?? ''] ?? '-'}</td>
-              <td>{p.active ? 'Activo' : 'Inactivo'}</td>
-              <td className="row">
-                <button className="secondary" onClick={() => setEditing(p)}>
-                  Editar
-                </button>
-                {p.active ? (
-                  <button
-                    className="secondary"
-                    onClick={async () => {
-                      await deactivateProduct(p.id);
-                      load();
-                    }}
-                  >
-                    Dar de baja
-                  </button>
-                ) : (
-                  <button
-                    className="secondary"
-                    onClick={async () => {
-                      await activateProduct(p.id);
-                      load();
-                    }}
-                  >
-                    Dar de alta
-                  </button>
-                )}
-              </td>
+      {!showNew && !editing && (
+        <div className="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Precio</th>
+              <th>Stock</th>
+              <th>Categoría</th>
+              <th>Marca</th>
+              <th>Estado</th>
+              <th></th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {products.map((p: Product) => (
+              <tr key={p.id}>
+                <td>{p.name}</td>
+                <td>${p.price}</td>
+                <td>{p.stock}</td>
+                <td>{catsMap[p.categoryId ?? ''] ?? '-'}</td>
+                <td>{brandsMap[p.brandId ?? ''] ?? '-'}</td>
+                <td>
+                  <span className={`badge ${p.active ? 'badge-green' : 'badge-gray'}`}>
+                    {p.active ? 'Activo' : 'Inactivo'}
+                  </span>
+                </td>
+                <td className="row">
+                  <button className="secondary" onClick={() => setEditing(p)}>
+                    Editar
+                  </button>
+                  {p.active ? (
+                    <button
+                      className="secondary"
+                      onClick={async () => {
+                        await deactivateProduct(p.id);
+                        load();
+                      }}
+                    >
+                      Dar de baja
+                    </button>
+                  ) : (
+                    <button
+                      className="secondary"
+                      onClick={async () => {
+                        await activateProduct(p.id);
+                        load();
+                      }}
+                    >
+                      Dar de alta
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        </div>
+      )}
+        </>
+      )}
+    </AdminShell>
   );
 }
