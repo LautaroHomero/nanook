@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Order, getAllOrders, getToken, updateOrderShipment } from '@/lib/api';
+import Link from 'next/link';
+import { Order, getAllOrders, getToken } from '@/lib/api';
+import { SHIPMENT_STATUS_LABEL, SHIPMENT_STATUS_BADGE } from '@/lib/shipment-status';
 import AdminShell from '../components/admin-shell';
 
 const ORDER_STATUS_LABEL: Record<Order['status'], string> = {
@@ -19,13 +21,6 @@ const ORDER_STATUS_BADGE: Record<Order['status'], string> = {
   CANCELLED: 'badge-red',
 };
 
-const SHIPMENT_STATUS_LABEL: Record<string, string> = {
-  pending: 'Pendiente de preparar',
-  preparing: 'Preparando',
-  shipped: 'Enviado',
-  delivered: 'Entregado',
-};
-
 function formatMoney(value: number) {
   return `$${Number(value).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
 }
@@ -40,9 +35,6 @@ export default function PedidosPage() {
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [savingShipmentId, setSavingShipmentId] = useState<string | null>(null);
-  const [trackingDrafts, setTrackingDrafts] = useState<Record<string, string>>({});
-  const [serialDrafts, setSerialDrafts] = useState<Record<string, string>>({});
 
   async function load() {
     setLoading(true);
@@ -69,52 +61,6 @@ export default function PedidosPage() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  async function handleShipmentStatusChange(orderId: string, status: string) {
-    setSavingShipmentId(orderId);
-    try {
-      await updateOrderShipment(orderId, status);
-      await load();
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setSavingShipmentId(null);
-    }
-  }
-
-  async function handleSaveTracking(orderId: string, status: string) {
-    const trackingId = trackingDrafts[orderId] ?? '';
-    setSavingShipmentId(orderId);
-    setError(null);
-    try {
-      await updateOrderShipment(orderId, status, { trackingId });
-      await load();
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setSavingShipmentId(null);
-    }
-  }
-
-  async function handleSaveSerials(orderId: string, status: string) {
-    const raw = serialDrafts[orderId] ?? '';
-    const serialNumbers = raw.split('\n').map((s) => s.trim()).filter(Boolean);
-    if (serialNumbers.length === 0) {
-      setError('Cargá al menos un número de serie');
-      return;
-    }
-    setSavingShipmentId(orderId);
-    setError(null);
-    try {
-      await updateOrderShipment(orderId, status, { serialNumbers });
-      setSerialDrafts((d) => ({ ...d, [orderId]: '' }));
-      await load();
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setSavingShipmentId(null);
-    }
-  }
 
   return (
     <AdminShell title="Compras y pagos" onRefresh={load} refreshing={loading}>
@@ -188,67 +134,21 @@ export default function PedidosPage() {
 
                         {order.shipment && (
                           <div className="subcard">
-                            <h4>Gestión de envío</h4>
-
-                            <div className="field-row">
-                              <label>Estado</label>
-                              <select
-                                value={order.shipment.status}
-                                disabled={savingShipmentId === order.id}
-                                onChange={(e) => handleShipmentStatusChange(order.id, e.target.value)}
-                              >
-                                {Object.entries(SHIPMENT_STATUS_LABEL).map(([value, label]) => (
-                                  <option key={value} value={value}>
-                                    {label}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-
-                            <div className="field-row">
-                              <label>N° de envío</label>
-                              <input
-                                placeholder="Número de envío"
-                                value={trackingDrafts[order.id] ?? order.shipment.trackingId ?? ''}
-                                disabled={savingShipmentId === order.id}
-                                onChange={(e) =>
-                                  setTrackingDrafts((d) => ({ ...d, [order.id]: e.target.value }))
-                                }
-                              />
-                              <button
-                                className="secondary"
-                                disabled={savingShipmentId === order.id}
-                                onClick={() => handleSaveTracking(order.id, order.shipment!.status)}
-                              >
-                                Guardar
-                              </button>
-                            </div>
-
-                            <label>
-                              Números de serie despachados (uno por línea)
-                              <textarea
-                                rows={2}
-                                value={serialDrafts[order.id] ?? ''}
-                                disabled={savingShipmentId === order.id}
-                                onChange={(e) =>
-                                  setSerialDrafts((d) => ({ ...d, [order.id]: e.target.value }))
-                                }
-                              />
-                            </label>
-                            <div className="row">
-                              <button
-                                className="secondary"
-                                disabled={savingShipmentId === order.id}
-                                onClick={() => handleSaveSerials(order.id, order.shipment!.status)}
-                              >
-                                Cargar números de serie
-                              </button>
-                            </div>
+                            <h4>Envío</h4>
+                            <p style={{ margin: '0 0 8px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span className={`badge ${SHIPMENT_STATUS_BADGE[order.shipment.status]}`}>
+                                {SHIPMENT_STATUS_LABEL[order.shipment.status]}
+                              </span>
+                              {order.shipment.trackingId && <span>N° {order.shipment.trackingId}</span>}
+                            </p>
                             {order.shipment.serials && order.shipment.serials.length > 0 && (
-                              <p style={{ margin: '10px 0 0', opacity: 0.8, fontSize: '0.85rem' }}>
-                                Ya despachados: {order.shipment.serials.map((s) => s.serialNumber).join(', ')}
+                              <p style={{ margin: '0 0 12px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                                Series despachadas: {order.shipment.serials.map((s) => s.serialNumber).join(', ')}
                               </p>
                             )}
+                            <Link href={`/envios?order=${order.id}`}>
+                              <button className="secondary">Gestionar envío</button>
+                            </Link>
                           </div>
                         )}
 
