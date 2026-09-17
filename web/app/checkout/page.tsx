@@ -51,6 +51,7 @@ export default function CheckoutPage() {
     shippingNumber: '',
     shippingCity: '',
     shippingState: '',
+    shippingPartido: '',
     shippingZip: '',
     shippingMethod: 'DOMICILIO' as 'SUCURSAL' | 'DOMICILIO',
   });
@@ -169,13 +170,13 @@ export default function CheckoutPage() {
     };
   }, [selectedCityCensalId, streetQuery]);
 
-  async function quoteForProvince(province: string) {
+  async function quoteForDestination(province: string, partido: string) {
     if (!province) {
       setShippingQuote(null);
       return;
     }
     try {
-      const quote = await quoteShipping(province, cartTotal(cart));
+      const quote = await quoteShipping(province, partido, cartTotal(cart));
       setShippingQuote(quote);
     } catch {
       setShippingQuote(null);
@@ -183,7 +184,7 @@ export default function CheckoutPage() {
   }
 
   function handleProvinceSelect(option: string) {
-    setForm((f) => ({ ...f, shippingState: option, shippingCity: '', shippingZip: '' }));
+    setForm((f) => ({ ...f, shippingState: option, shippingCity: '', shippingPartido: '', shippingZip: '' }));
     setProvinceQuery(option);
     setProvinceMenuOpen(false);
     setCityQuery('');
@@ -191,18 +192,20 @@ export default function CheckoutPage() {
     setSelectedCityCensalId('');
     setStreetQuery('');
     setStreetSuggestions([]);
-    quoteForProvince(option);
+    quoteForDestination(option, '');
   }
 
   function handleCitySelect(option: string) {
     const selected = provinceCities.find((city) => city.city === option);
-    setForm((f) => ({ ...f, shippingCity: option, shippingZip: '' }));
+    const partido = selected?.partido ?? '';
+    setForm((f) => ({ ...f, shippingCity: option, shippingPartido: partido, shippingZip: '' }));
     setCityQuery(option);
     setCityMenuOpen(false);
     setSelectedCityId(selected?.id ?? '');
     setSelectedCityCensalId(selected?.censalId ?? '');
     setStreetQuery('');
     setStreetSuggestions([]);
+    quoteForDestination(form.shippingState, partido);
   }
 
   function handleStreetSelect(option: string) {
@@ -217,6 +220,7 @@ export default function CheckoutPage() {
 
       if (field === 'shippingState') {
         next.shippingCity = '';
+        next.shippingPartido = '';
         next.shippingZip = '';
         setSelectedCityId('');
         setSelectedCityCensalId('');
@@ -344,7 +348,7 @@ export default function CheckoutPage() {
                 setSelectedCityCensalId('');
                 setStreetQuery('');
                 setStreetSuggestions([]);
-                setForm((f) => ({ ...f, shippingCity: '', shippingStreet: '', shippingZip: '' }));
+                setForm((f) => ({ ...f, shippingCity: '', shippingPartido: '', shippingStreet: '', shippingZip: '' }));
               }}
               onFocus={() => setCityMenuOpen(true)}
               onBlur={() => setCityMenuOpen(false)}

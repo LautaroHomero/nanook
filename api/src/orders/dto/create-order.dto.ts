@@ -4,6 +4,7 @@ import {
   IsEmail,
   IsIn,
   IsInt,
+  IsOptional,
   IsString,
   Min,
   Validate,
@@ -64,6 +65,13 @@ export class CreateOrderDto {
 
   @IsString()
   shippingState: string;
+
+  // Partido de destino (solo relevante dentro de la provincia de Buenos
+  // Aires: separa AMBA/Gran La Plata del resto de la provincia al
+  // calcular el costo de envío). Opcional para no romper clientes viejos.
+  @IsOptional()
+  @IsString()
+  shippingPartido?: string;
 
   @IsString()
   shippingZip: string;

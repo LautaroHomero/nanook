@@ -4,6 +4,11 @@ export type ArgentinaCityOption = {
   // Id de la localidad censal: es lo que pide /calles (distinto del id de
   // localidad que usamos para mostrar/filtrar la ciudad).
   censalId: string;
+  // Partido/departamento al que pertenece la localidad (p. ej. "Ramos
+  // Mejía" -> "La Matanza"). Se usa para cotizar el envío: dentro de la
+  // provincia de Buenos Aires, los partidos del AMBA pagan una tarifa
+  // distinta al resto de la provincia.
+  partido: string;
 };
 
 export type ArgentinaProvinceOption = {
@@ -31,6 +36,7 @@ type GeorefLocalidadesResponse = {
     id: string;
     nombre: string;
     localidad_censal?: { id: string };
+    departamento?: { nombre: string };
   }>;
   cantidad: number;
   total: number;
@@ -87,16 +93,17 @@ export async function fetchProvinceCities(provinceId: string): Promise<Argentina
   while (true) {
     const data = await georefRequest<GeorefLocalidadesResponse>('/localidades', {
       provincia: provinceId,
-      campos: 'id,nombre,localidad_censal.id',
+      campos: 'id,nombre,localidad_censal.id,departamento.nombre',
       max: String(GEOREF_MAX_PAGE_SIZE),
       inicio: String(inicio),
     });
 
     cities.push(
-      ...data.localidades.map(({ id, nombre, localidad_censal }) => ({
+      ...data.localidades.map(({ id, nombre, localidad_censal, departamento }) => ({
         id,
         city: nombre,
         censalId: localidad_censal?.id ?? '',
+        partido: departamento?.nombre ?? '',
       })),
     );
 

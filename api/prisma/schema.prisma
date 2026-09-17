@@ -13,6 +13,18 @@ enum ShippingMethod {
   DOMICILIO
 }
 
+// Los 4 grupos con los que Andreani segmenta el costo según destino (ver
+// admin/app/envios): AMBA (CABA + partidos del GBA + Gran La Plata),
+// CENTRO (resto de Buenos Aires, Córdoba, Santa Fe, La Pampa, Entre Ríos),
+// INTERMEDIO (Cuyo/NOA/NEA/Neuquén/Río Negro) y EXTREMO (Salta, Jujuy,
+// Chubut, Santa Cruz, Tierra del Fuego).
+enum ShippingZone {
+  AMBA
+  CENTRO
+  INTERMEDIO
+  EXTREMO
+}
+
 enum ReturnRequestStatus {
   PENDING
   APPROVED
@@ -132,17 +144,30 @@ model OrderItem {
   @@index([productId])
 }
 
-// Tarifa de envío fija por provincia, cargada y mantenida a mano por el
-// admin (reemplaza la cotización automática de Andreani: el envío en sí
-// se coordina manualmente una vez que la orden está pagada).
+// Reemplazada por ShippingZoneRate (tarifa por zona en vez de por
+// provincia). Se deja el modelo sin usar, sin migrar la tabla, para no
+// perder ninguna tarifa que el admin ya haya cargado por provincia.
 model ShippingRate {
   id             String   @id @default(uuid())
   province       String   @unique
-  // Retiro en sucursal (Andreani u otro correo) vs. entrega a domicilio.
   costSucursal   Decimal  @db.Decimal(10, 2)
   costDomicilio  Decimal  @db.Decimal(10, 2)
   estimatedDays  Int      @default(7)
   updatedAt      DateTime @updatedAt
+}
+
+// Tarifa fija por zona geográfica (ver ShippingZone), cargada y mantenida
+// a mano por el admin (el envío en sí se coordina manualmente una vez que
+// la orden está pagada). La zona se resuelve a partir de provincia +
+// localidad/partido: ver shipping-zones.ts.
+model ShippingZoneRate {
+  id             String       @id @default(uuid())
+  zone           ShippingZone @unique
+  // Retiro en sucursal (Andreani u otro correo) vs. entrega a domicilio.
+  costSucursal   Decimal      @db.Decimal(10, 2)
+  costDomicilio  Decimal      @db.Decimal(10, 2)
+  estimatedDays  Int          @default(7)
+  updatedAt      DateTime     @updatedAt
 }
 
 model Payment {
