@@ -4,9 +4,10 @@ import { OrdersController } from './orders.controller';
 import { ShippingModule } from '../shipping/shipping.module';
 import { PaymentsModule } from '../payments/payments.module';
 import { AdminAuthModule } from '../admin-auth/admin-auth.module';
+import { NotificationsModule } from '../notifications/notification.module';
 
 @Module({
-  imports: [ShippingModule, PaymentsModule, AdminAuthModule],
+  imports: [ShippingModule, PaymentsModule, AdminAuthModule, NotificationsModule],
   providers: [OrdersService],
   controllers: [OrdersController],
 })

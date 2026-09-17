@@ -87,6 +87,27 @@ export class NotificationsService {
     });
   }
 
+  notifyOrderShipped(params: {
+    to: string;
+    buyerName: string;
+    orderNumber: number;
+    trackingId: string;
+  }) {
+    return this.provider.sendEmail({
+      to: params.to,
+      subject: `Tu pedido salió hacia vos (orden #${params.orderNumber})`,
+      body: [
+        `Hola ${params.buyerName},`,
+        '',
+        `Tu pedido (orden #${params.orderNumber}) ya salió hacia vos vía Andreani.`,
+        '',
+        `Número de envío: ${params.trackingId}`,
+        '',
+        'Podés seguirlo con ese número desde la web de Andreani.',
+      ].join('\n'),
+    });
+  }
+
   notifyAdminNewOrderPaid(params: {
     to: string;
     orderNumber: number;
