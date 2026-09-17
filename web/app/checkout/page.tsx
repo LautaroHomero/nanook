@@ -40,8 +40,6 @@ export default function CheckoutPage() {
   const [selectedCityId, setSelectedCityId] = useState('');
   const [selectedCityCensalId, setSelectedCityCensalId] = useState('');
 
-  const [buyerDniConfirm, setBuyerDniConfirm] = useState('');
-
   const [form, setForm] = useState({
     buyerName: '',
     buyerEmail: '',
@@ -240,10 +238,6 @@ export default function CheckoutPage() {
       setError('El DNI o CUIT ingresado no es válido');
       return;
     }
-    if (form.buyerDni.replace(/\D/g, '') !== buyerDniConfirm.replace(/\D/g, '')) {
-      setError('El DNI o CUIT no coincide con su confirmación');
-      return;
-    }
     setLoading(true);
     setError(null);
     try {
@@ -292,13 +286,6 @@ export default function CheckoutPage() {
           placeholder="DNI o CUIT"
           value={form.buyerDni}
           onChange={(e) => update('buyerDni', e.target.value)}
-          required
-        />
-        <input
-          placeholder="Repetí tu DNI o CUIT"
-          value={buyerDniConfirm}
-          onChange={(e) => setBuyerDniConfirm(e.target.value)}
-          onPaste={(e) => e.preventDefault()}
           required
         />
 
