@@ -126,8 +126,15 @@ export class PaymentsService {
       return { valid: false, reason: 'invalid-timestamp' as const };
     }
 
+    // MP reintenta una notificación fallida cada 15 minutos, y ese intervalo
+    // se extiende más todavía después del tercer intento (sigue reintentando
+    // hasta que respondamos 200) — con una ventana de 5 minutos, cualquier
+    // rechazo transitorio (deploy en curso, cold start, etc.) en el primer
+    // intento hacía que TODOS los reintentos también fallaran por esto,
+    // perdiendo la orden aunque el pago estuviera aprobado. 24hs sigue
+    // sirviendo como protección anti-replay sin descartar reintentos reales.
     const skewMs = Math.abs(Date.now() - timestamp);
-    const maxSkewMs = 5 * 60 * 1000;
+    const maxSkewMs = 24 * 60 * 60 * 1000;
     if (skewMs > maxSkewMs) {
       return { valid: false, reason: 'timestamp-out-of-range' as const };
     }
