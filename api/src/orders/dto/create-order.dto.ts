@@ -15,6 +15,7 @@ import {
 import { isValidDniOrCuit } from '../../common/dni-cuit';
 
 export const SHIPPING_METHODS = ['SUCURSAL', 'DOMICILIO'] as const;
+export const PAYMENT_METHODS = ['MERCADOPAGO', 'TRANSFERENCIA'] as const;
 
 @ValidatorConstraint({ name: 'isDniOrCuit', async: false })
 class IsDniOrCuitConstraint implements ValidatorConstraintInterface {
@@ -78,4 +79,7 @@ export class CreateOrderDto {
 
   @IsIn(SHIPPING_METHODS)
   shippingMethod: (typeof SHIPPING_METHODS)[number];
+
+  @IsIn(PAYMENT_METHODS)
+  paymentMethod: (typeof PAYMENT_METHODS)[number];
 }

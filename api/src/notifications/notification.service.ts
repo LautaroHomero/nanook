@@ -87,6 +87,68 @@ export class NotificationsService {
     });
   }
 
+  notifyTransferInstructions(params: {
+    to: string;
+    buyerName: string;
+    orderNumber: number;
+    total: number;
+    bankDetails: {
+      bankName: string;
+      cbu: string;
+      alias: string;
+      holderName: string;
+      holderCuit: string;
+    };
+  }) {
+    const money = (n: number) => `$${n.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
+
+    return this.provider.sendEmail({
+      to: params.to,
+      subject: `Datos para transferir tu compra en Nanook (orden #${params.orderNumber})`,
+      body: [
+        `Hola ${params.buyerName},`,
+        '',
+        `Reservamos tu pedido #${params.orderNumber}. Para confirmarlo, transferí ${money(params.total)} a:`,
+        '',
+        `Banco: ${params.bankDetails.bankName}`,
+        `CBU: ${params.bankDetails.cbu}`,
+        `Alias: ${params.bankDetails.alias}`,
+        `Titular: ${params.bankDetails.holderName}`,
+        `CUIT/DNI: ${params.bankDetails.holderCuit}`,
+        '',
+        'Una vez que transfieras, subí el comprobante en PDF desde la misma pantalla de la compra (el que te da tu banco o billetera, no una foto ni una captura de pantalla) para que podamos confirmar el pago.',
+      ].join('\n'),
+    });
+  }
+
+  // Único aviso al admin de un pedido por transferencia: a propósito no se
+  // manda nada antes de que haya un comprobante para revisar (ver
+  // OrdersService.create).
+  notifyAdminTransferReceiptUploaded(params: {
+    to: string;
+    orderNumber: number;
+    checkPassed: boolean;
+    checkDetail: string;
+  }) {
+    const checkLine = params.checkPassed
+      ? `✓ El chequeo automático coincide con nuestra cuenta: ${params.checkDetail}`
+      : `✗ El chequeo automático NO coincide: ${params.checkDetail}`;
+
+    return this.provider.sendEmail({
+      to: params.to,
+      subject: `${params.checkPassed ? '✓' : '✗'} Comprobante subido: orden #${params.orderNumber}`,
+      body: [
+        `El comprador de la orden #${params.orderNumber} subió el comprobante de transferencia.`,
+        '',
+        checkLine,
+        '',
+        params.checkPassed
+          ? 'Es solo un chequeo automático de los datos de la cuenta, no confirma que la plata haya llegado: revisá tu resumen bancario antes de confirmar el pago en el panel de admin (Ventas).'
+          : 'Antes de confirmar el pago, contactá al comprador para resolverlo: puede volver a subir un comprobante corregido desde el mismo link que ya tiene, o podés cancelar el pedido desde el panel si no se resuelve.',
+      ].join('\n'),
+    });
+  }
+
   notifyOrderShipped(params: {
     to: string;
     buyerName: string;

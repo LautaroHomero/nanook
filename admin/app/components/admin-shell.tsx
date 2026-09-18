@@ -78,7 +78,7 @@ function Icon({ name }: { name: IconName }) {
 
 const NAV_ITEMS: { href: string; label: string; icon: IconName }[] = [
   { href: '/productos', label: 'Productos', icon: 'box' },
-  { href: '/pedidos', label: 'Compras', icon: 'cart' },
+  { href: '/pedidos', label: 'Ventas', icon: 'cart' },
   { href: '/solicitudes', label: 'Pedidos de producto', icon: 'search' },
   { href: '/avisos', label: 'Avisos de stock', icon: 'bell' },
   { href: '/envios', label: 'Envíos', icon: 'truck' },

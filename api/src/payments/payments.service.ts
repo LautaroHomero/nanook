@@ -358,6 +358,7 @@ export class PaymentsService {
           shippingMethod: payload.shippingMethod,
           shippingCost: payload.shippingCost,
           itemsTotal: payload.itemsTotal,
+          surchargeAmount: payload.surchargeAmount,
           total: payload.total,
           items: {
             create: payload.items.map((item) => ({

@@ -2,12 +2,13 @@ import {
   BadRequestException,
   Controller,
   Post,
+  UploadedFile,
   UploadedFiles,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { FilesInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { AdminAuthGuard } from '../admin-auth/admin-auth.guard';
 import { UploadsService } from './uploads.service';
 
@@ -63,5 +64,31 @@ export class UploadsController {
       'nanook/returns',
     );
     return { urls };
+  }
+
+  // Público: el comprador sube el comprobante de una transferencia recién
+  // hecha. Mismo criterio que return-photos (sin auth, rate-limit estricto).
+  // Tiene que ser PDF: es lo único que orders.service.ts puede analizar
+  // automáticamente (ver receipt-verification.ts) para chequear que el
+  // destino sea nuestra cuenta.
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Post('transfer-receipt')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: MAX_FILE_SIZE_BYTES },
+      fileFilter: (_req, file, callback) => {
+        callback(null, file.mimetype === 'application/pdf');
+      },
+    }),
+  )
+  async uploadTransferReceipt(@UploadedFile() file: any) {
+    if (!file) {
+      throw new BadRequestException('El comprobante tiene que ser un archivo PDF');
+    }
+    const [url] = await this.service.saveMany(
+      [{ buffer: file.buffer, originalName: file.originalname }],
+      'nanook/transfers',
+    );
+    return { url };
   }
 }

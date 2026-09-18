@@ -69,6 +69,9 @@ export interface Payment {
   preferenceId?: string | null;
   externalId?: string | null;
   status: string;
+  receiptUrl?: string | null;
+  receiptCheckStatus?: 'match' | 'mismatch' | null;
+  receiptCheckDetail?: string | null;
 }
 
 export interface ProductSerial {
@@ -105,6 +108,7 @@ export interface Order {
   shippingMethod: 'SUCURSAL' | 'DOMICILIO';
   shippingCost: number;
   itemsTotal: number;
+  surchargeAmount: number;
   total: number;
   items: OrderItem[];
   payment: Payment | null;
@@ -407,6 +411,68 @@ export async function updateOrderShipment(
   if (!res.ok) {
     const data = await res.json().catch(() => null);
     throw new Error(data?.message || 'No se pudo actualizar el envío');
+  }
+  return res.json();
+}
+
+export async function confirmTransferPayment(orderId: string): Promise<Order> {
+  const res = await fetch(`${API_URL}/api/orders/${orderId}/confirm-transfer`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new Error(data?.message || 'No se pudo confirmar el pago');
+  }
+  return res.json();
+}
+
+export async function cancelOrder(orderId: string): Promise<Order> {
+  const res = await fetch(`${API_URL}/api/orders/${orderId}/cancel`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new Error(data?.message || 'No se pudo cancelar el pedido');
+  }
+  return res.json();
+}
+
+export interface BankTransferDetails {
+  bankName: string;
+  cbu: string;
+  alias: string;
+  holderName: string;
+  holderCuit: string;
+  configured: boolean;
+}
+
+export async function getBankDetails(): Promise<BankTransferDetails> {
+  const res = await fetch(`${API_URL}/api/orders/bank-details/admin`, {
+    headers: authHeaders(),
+    cache: 'no-store',
+  });
+  if (res.status === 401) throw new Error('UNAUTHORIZED');
+  if (!res.ok) throw new Error('No se pudieron cargar los datos bancarios');
+  return res.json();
+}
+
+export async function updateBankDetails(payload: {
+  bankName: string;
+  cbu: string;
+  alias: string;
+  holderName: string;
+  holderCuit: string;
+}): Promise<BankTransferDetails> {
+  const res = await fetch(`${API_URL}/api/orders/bank-details/admin`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new Error(data?.message || 'No se pudieron guardar los datos bancarios');
   }
   return res.json();
 }

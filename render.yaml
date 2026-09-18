@@ -39,6 +39,18 @@ services:
         value: https://nanook-api.onrender.com/api/payments/webhook
       - key: MP_CURRENCY_ID
         value: ARS
+      - key: MP_SURCHARGE_PERCENT
+        value: 4.3
+      - key: BANK_TRANSFER_BANK_NAME
+        value: BBVA
+      - key: BANK_TRANSFER_CBU
+        sync: false
+      - key: BANK_TRANSFER_ALIAS
+        sync: false
+      - key: BANK_TRANSFER_HOLDER_NAME
+        sync: false
+      - key: BANK_TRANSFER_HOLDER_CUIT
+        sync: false
       - key: FRONTEND_URL
         value: https://tiendananook.store
       - key: ADMIN_URL
