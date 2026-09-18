@@ -100,9 +100,25 @@ export interface CheckoutPayload {
   shippingPartido: string;
   shippingZip: string;
   shippingMethod: 'SUCURSAL' | 'DOMICILIO';
+  paymentMethod: 'MERCADOPAGO' | 'TRANSFERENCIA';
 }
 
-export async function createOrder(payload: CheckoutPayload) {
+export interface BankDetails {
+  bankName: string;
+  cbu: string;
+  alias: string;
+  holderName: string;
+  holderCuit: string;
+}
+
+export interface CreateOrderResponse {
+  payment:
+    | { method: 'MERCADOPAGO'; initPoint: string; preferenceId: string }
+    | { method: 'TRANSFERENCIA'; total: number; bankDetails: BankDetails };
+  order?: { id: string; orderNumber: number };
+}
+
+export async function createOrder(payload: CheckoutPayload): Promise<CreateOrderResponse> {
   const res = await fetch(`${API_URL}/api/orders`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -111,6 +127,38 @@ export async function createOrder(payload: CheckoutPayload) {
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.message || 'No se pudo crear la orden');
+  }
+  return res.json();
+}
+
+export async function uploadTransferReceipt(file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const res = await fetch(`${API_URL}/api/uploads/transfer-receipt`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!res.ok) throw new Error('No se pudo subir el comprobante');
+  const data = await res.json();
+  return data.url as string;
+}
+
+export async function getBankDetails(): Promise<BankDetails> {
+  const res = await fetch(`${API_URL}/api/orders/bank-details`, { cache: 'no-store' });
+  if (!res.ok) throw new Error('No se pudieron obtener los datos bancarios');
+  return res.json();
+}
+
+export async function attachTransferReceipt(orderId: string, receiptUrl: string) {
+  const res = await fetch(`${API_URL}/api/orders/${orderId}/transfer-receipt`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ receiptUrl }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || 'No se pudo adjuntar el comprobante');
   }
   return res.json();
 }

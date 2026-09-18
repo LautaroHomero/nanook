@@ -18,6 +18,8 @@ export interface PendingOrderPayload {
   items: { productId: string; quantity: number; unitPrice: number }[];
   itemsTotal: number;
   shippingCost: number;
+  // Recargo de Mercado Pago ya incluido en `total`.
+  surchargeAmount: number;
   total: number;
 }
 

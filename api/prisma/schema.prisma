@@ -120,6 +120,8 @@ model Order {
   shippingCost    Decimal     @db.Decimal(10, 2) @default(0)
 
   itemsTotal      Decimal     @db.Decimal(10, 2)
+  // Recargo de Mercado Pago (0 para transferencia). total = itemsTotal + shippingCost + surchargeAmount.
+  surchargeAmount Decimal     @db.Decimal(10, 2) @default(0)
   total           Decimal     @db.Decimal(10, 2)
 
   items           OrderItem[]
@@ -170,6 +172,20 @@ model ShippingZoneRate {
   updatedAt      DateTime     @updatedAt
 }
 
+// Fila única (id fijo) con los datos de la cuenta bancaria que se le
+// muestran al comprador que elige pagar por transferencia. Editable desde
+// el panel admin (Ventas); si no existe todavía, orders.service.ts cae a
+// las variables de entorno BANK_TRANSFER_* como valor por defecto.
+model BankTransferSettings {
+  id         String   @id @default("singleton")
+  bankName   String
+  cbu        String
+  alias      String
+  holderName String
+  holderCuit String
+  updatedAt  DateTime @updatedAt
+}
+
 model Payment {
   id             String   @id @default(uuid())
   order          Order    @relation(fields: [orderId], references: [id])
@@ -181,6 +197,14 @@ model Payment {
   // resolve pueden llegar en paralelo o duplicados para el mismo pago.
   externalId     String?  @unique
   status         String   @default("pending")
+  // Comprobante de transferencia subido por el comprador (Cloudinary).
+  receiptUrl     String?
+  // Resultado del chequeo automático del PDF contra BankTransferSettings:
+  // "match" (encontramos nuestro CBU o alias en el texto del PDF) o
+  // "mismatch" (no lo encontramos, o el PDF no se pudo leer). Null hasta
+  // que se sube un comprobante. Ver receipt-verification.ts.
+  receiptCheckStatus String?
+  receiptCheckDetail String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 }

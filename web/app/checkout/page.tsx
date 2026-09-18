@@ -1,9 +1,15 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { cartTotal } from '@/lib/cart';
 import { useCart } from '@/lib/cart-context';
 import { createOrder, quoteShipping } from '@/lib/api';
+
+// Recargo informativo de Mercado Pago para mostrarle al comprador antes de
+// pagar. El monto real que se cobra siempre lo calcula el backend (ver
+// orders.service.ts) — esto es solo una previsualización.
+const MP_SURCHARGE_PERCENT = Number(process.env.NEXT_PUBLIC_MP_SURCHARGE_PERCENT ?? '4.3');
 import { isValidDniOrCuit } from '@/lib/dni-cuit';
 import {
   fetchArgentinaProvinces,
@@ -20,8 +26,13 @@ interface ShippingQuote {
   estimatedDays: number;
 }
 
+function formatMoney(value: number) {
+  return `$${value.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 export default function CheckoutPage() {
-  const { items: cart } = useCart();
+  const router = useRouter();
+  const { items: cart, clear } = useCart();
   const [shippingQuote, setShippingQuote] = useState<ShippingQuote | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,6 +65,7 @@ export default function CheckoutPage() {
     shippingPartido: '',
     shippingZip: '',
     shippingMethod: 'DOMICILIO' as 'SUCURSAL' | 'DOMICILIO',
+    paymentMethod: 'MERCADOPAGO' as 'MERCADOPAGO' | 'TRANSFERENCIA',
   });
 
   useEffect(() => {
@@ -256,6 +268,13 @@ export default function CheckoutPage() {
         items: cart.map((i) => ({ productId: i.productId, quantity: i.quantity })),
         ...form,
       });
+
+      if (result.payment.method === 'TRANSFERENCIA') {
+        clear();
+        router.push(`/checkout/transferencia?orderId=${result.order?.id}`);
+        return;
+      }
+
       window.location.href = result.payment.initPoint;
     } catch (err: any) {
       setError(err.message || 'Error al crear la orden');
@@ -270,6 +289,8 @@ export default function CheckoutPage() {
 
   const shippingCost = shippingQuote ? shippingQuote[form.shippingMethod.toLowerCase() as 'sucursal' | 'domicilio'] : null;
   const total = cartTotal(cart) + (shippingCost ?? 0);
+  const mpSurchargeAmount = total * (MP_SURCHARGE_PERCENT / 100);
+  const displayTotal = form.paymentMethod === 'MERCADOPAGO' ? total + mpSurchargeAmount : total;
 
   return (
     <div>
@@ -436,37 +457,105 @@ export default function CheckoutPage() {
         </label>
 
         {shippingQuote && (
-          <div className="shipping-method-options">
-            <label>
-              <input
-                type="radio"
-                name="shippingMethod"
-                checked={form.shippingMethod === 'DOMICILIO'}
-                onChange={() => update('shippingMethod', 'DOMICILIO')}
-              />
-              Envío a domicilio — {shippingQuote.domicilio > 0 ? `$${shippingQuote.domicilio}` : 'Gratis'}
-            </label>
-            <label>
-              <input
-                type="radio"
-                name="shippingMethod"
-                checked={form.shippingMethod === 'SUCURSAL'}
-                onChange={() => update('shippingMethod', 'SUCURSAL')}
-              />
-              Retiro en sucursal — {shippingQuote.sucursal > 0 ? `$${shippingQuote.sucursal}` : 'Gratis'}
-            </label>
-          </div>
+          <>
+            <p className="option-group-label">Método de envío</p>
+            <div className="option-list">
+              <label className={`option-row${form.shippingMethod === 'DOMICILIO' ? ' selected' : ''}`}>
+                <span className="option-main">
+                  <input
+                    type="radio"
+                    name="shippingMethod"
+                    checked={form.shippingMethod === 'DOMICILIO'}
+                    onChange={() => update('shippingMethod', 'DOMICILIO')}
+                  />
+                  <span className="option-label">Envío a domicilio</span>
+                </span>
+                <span className="option-price">
+                  {shippingQuote.domicilio > 0 ? formatMoney(shippingQuote.domicilio) : 'Gratis'}
+                </span>
+              </label>
+              <label className={`option-row${form.shippingMethod === 'SUCURSAL' ? ' selected' : ''}`}>
+                <span className="option-main">
+                  <input
+                    type="radio"
+                    name="shippingMethod"
+                    checked={form.shippingMethod === 'SUCURSAL'}
+                    onChange={() => update('shippingMethod', 'SUCURSAL')}
+                  />
+                  <span className="option-label">Retiro en sucursal</span>
+                </span>
+                <span className="option-price">
+                  {shippingQuote.sucursal > 0 ? formatMoney(shippingQuote.sucursal) : 'Gratis'}
+                </span>
+              </label>
+            </div>
+          </>
         )}
+
+        <p className="option-group-label">Método de pago</p>
+        <div className="option-list">
+          <label className={`option-row${form.paymentMethod === 'MERCADOPAGO' ? ' selected' : ''}`}>
+            <span className="option-main">
+              <input
+                type="radio"
+                name="paymentMethod"
+                checked={form.paymentMethod === 'MERCADOPAGO'}
+                onChange={() => update('paymentMethod', 'MERCADOPAGO')}
+              />
+              <span>
+                <span className="option-label">Mercado Pago</span>
+                <span className="option-hint">Tarjeta, dinero en cuenta, etc.</span>
+              </span>
+            </span>
+            <span className="option-price">+{formatMoney(mpSurchargeAmount)}</span>
+          </label>
+          <label className={`option-row${form.paymentMethod === 'TRANSFERENCIA' ? ' selected' : ''}`}>
+            <span className="option-main">
+              <input
+                type="radio"
+                name="paymentMethod"
+                checked={form.paymentMethod === 'TRANSFERENCIA'}
+                onChange={() => update('paymentMethod', 'TRANSFERENCIA')}
+              />
+              <span>
+                <span className="option-label">Transferencia bancaria</span>
+                <span className="option-hint">Te mostramos el CBU al confirmar</span>
+              </span>
+            </span>
+            <span className="option-price">Sin recargo</span>
+          </label>
+        </div>
+
+        <div className="price-breakdown">
+          <div className="price-breakdown-row">
+            <span>Productos</span>
+            <span>{formatMoney(cartTotal(cart))}</span>
+          </div>
+          <div className="price-breakdown-row">
+            <span>Envío</span>
+            <span>{shippingCost ? formatMoney(shippingCost) : shippingCost === 0 ? 'Gratis' : '—'}</span>
+          </div>
+          {form.paymentMethod === 'MERCADOPAGO' && (
+            <div className="price-breakdown-row">
+              <span>Recargo Mercado Pago ({MP_SURCHARGE_PERCENT}%)</span>
+              <span>{formatMoney(mpSurchargeAmount)}</span>
+            </div>
+          )}
+        </div>
 
         <div className="total-row">
           <span>Total</span>
-          <span>${total}</span>
+          <span>{formatMoney(displayTotal)}</span>
         </div>
 
         {error && <p style={{ color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: 10 }}>{error}</p>}
 
         <button type="submit" disabled={loading}>
-          {loading ? 'Procesando...' : 'Pagar con Mercado Pago'}
+          {loading
+            ? 'Procesando...'
+            : form.paymentMethod === 'MERCADOPAGO'
+              ? 'Pagar con Mercado Pago'
+              : 'Continuar con transferencia'}
         </button>
       </form>
 
@@ -474,7 +563,11 @@ export default function CheckoutPage() {
         <div className="modal-overlay" onClick={() => !loading && setShowConfirm(false)}>
           <div className="modal-panel" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
             <h2>Confirmá tus datos</h2>
-            <p className="modal-eyebrow">Revisá que todo esté correcto antes de ir a Mercado Pago</p>
+            <p className="modal-eyebrow">
+              {form.paymentMethod === 'MERCADOPAGO'
+                ? 'Revisá que todo esté correcto antes de ir a Mercado Pago'
+                : 'Revisá que todo esté correcto antes de generar el pedido'}
+            </p>
 
             <dl className="modal-summary">
               <dt>Comprador</dt>
@@ -491,7 +584,13 @@ export default function CheckoutPage() {
               <dt>Método de envío</dt>
               <dd>
                 {form.shippingMethod === 'DOMICILIO' ? 'Envío a domicilio' : 'Retiro en sucursal'}
-                {shippingCost !== null && (shippingCost > 0 ? ` — $${shippingCost}` : ' — Gratis')}
+                {shippingCost !== null && (shippingCost > 0 ? ` — ${formatMoney(shippingCost)}` : ' — Gratis')}
+              </dd>
+              <dt>Método de pago</dt>
+              <dd>
+                {form.paymentMethod === 'MERCADOPAGO'
+                  ? `Mercado Pago (recargo del ${MP_SURCHARGE_PERCENT}% incluido)`
+                  : 'Transferencia bancaria (sin recargo)'}
               </dd>
             </dl>
 
@@ -500,15 +599,32 @@ export default function CheckoutPage() {
                 <div className="modal-item-row" key={item.productId}>
                   <span className="name">{item.name}</span>
                   <span className="qty">
-                    {item.quantity} × ${item.price}
+                    {item.quantity} × {formatMoney(item.price)}
                   </span>
                 </div>
               ))}
             </div>
 
+            <div className="price-breakdown">
+              <div className="price-breakdown-row">
+                <span>Productos</span>
+                <span>{formatMoney(cartTotal(cart))}</span>
+              </div>
+              <div className="price-breakdown-row">
+                <span>Envío</span>
+                <span>{shippingCost ? formatMoney(shippingCost) : shippingCost === 0 ? 'Gratis' : '—'}</span>
+              </div>
+              {form.paymentMethod === 'MERCADOPAGO' && (
+                <div className="price-breakdown-row">
+                  <span>Recargo Mercado Pago ({MP_SURCHARGE_PERCENT}%)</span>
+                  <span>{formatMoney(mpSurchargeAmount)}</span>
+                </div>
+              )}
+            </div>
+
             <div className="total-row">
               <span>Total</span>
-              <span>${total}</span>
+              <span>{formatMoney(displayTotal)}</span>
             </div>
 
             {error && (
